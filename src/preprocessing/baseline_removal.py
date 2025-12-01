@@ -1,0 +1,111 @@
+"""
+Baseline removal utilities for ECG signals.
+
+All functions assume input shape: (num_samples, num_leads)
+and return an array with the same shape.
+"""
+
+from typing import Literal
+
+import numpy as np
+from scipy.signal import butter, filtfilt
+
+
+def highpass_filter(
+    signal: np.ndarray,
+    fs: float,
+    cutoff_hz: float = 0.7,
+    order: int = 3,
+) -> np.ndarray:
+    """
+    Remove baseline using a Butterworth high-pass filter.
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        ECG array of shape (T, 12) or (T, n_leads).
+    fs : float
+        Sampling frequency in Hz.
+    cutoff_hz : float
+        High-pass cutoff frequency in Hz.
+    order : int
+        Filter order.
+
+    Returns
+    -------
+    np.ndarray
+        Baseline-corrected ECG, same shape as input.
+    """
+    if signal.ndim != 2:
+        raise ValueError(f"signal must be 2D (T, leads), got shape {signal.shape}")
+
+    nyq = 0.5 * fs
+    normalized_cutoff = cutoff_hz / nyq
+    b, a = butter(order, normalized_cutoff, btype="high", analog=False)
+    # filtfilt to avoid phase distortion
+    return filtfilt(b, a, signal, axis=0)
+
+
+def moving_average_baseline(signal: np.ndarray, window_seconds: float, fs: float) -> np.ndarray:
+    """
+    Estimate and remove baseline using a moving-average filter.
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        ECG array of shape (T, leads).
+    window_seconds : float
+        Window length in seconds for baseline estimation.
+    fs : float
+        Sampling frequency in Hz.
+
+    Returns
+    -------
+    np.ndarray
+        Baseline-corrected ECG signal.
+    """
+    if signal.ndim != 2:
+        raise ValueError(f"signal must be 2D (T, leads), got shape {signal.shape}")
+
+    window_samples = int(max(1, round(window_seconds * fs)))
+    # Simple 1D moving average kernel
+    kernel = np.ones(window_samples, dtype=np.float32) / window_samples
+
+    baseline = np.vstack(
+        [np.convolve(signal[:, lead], kernel, mode="same") for lead in range(signal.shape[1])]
+    ).T
+    return signal - baseline
+
+
+def remove_baseline(
+    signal: np.ndarray,
+    fs: float,
+    method: Literal["highpass", "moving_average"] = "highpass",
+    **kwargs,
+) -> np.ndarray:
+    """
+    Convenience wrapper to remove baseline with configurable method.
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        ECG array of shape (T, leads).
+    fs : float
+        Sampling frequency.
+    method : {"highpass", "moving_average"}
+        Baseline removal method.
+    kwargs : dict
+        Extra args passed to the underlying method.
+
+    Returns
+    -------
+    np.ndarray
+        Baseline-corrected ECG.
+    """
+    if method == "highpass":
+        return highpass_filter(signal, fs=fs, **kwargs)
+    elif method == "moving_average":
+        window_seconds = kwargs.get("window_seconds", 0.8)
+        return moving_average_baseline(signal, window_seconds=window_seconds, fs=fs)
+    else:
+        raise ValueError(f"Unknown baseline removal method: {method}")
