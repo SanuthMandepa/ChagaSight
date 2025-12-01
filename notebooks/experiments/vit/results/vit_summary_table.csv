@@ -1,0 +1,2 @@
+Model,Dataset,Accuracy,F1-Score (Macro),Parameters (M),Best Epoch,Train Accuracy,Val Accuracy,Train Loss,Val Loss
+ChagaSight ViT (PTB-XL),PTB-XL,0.5946,0.4783,3.32,19,0.6509,0.6198,0.9695,1.3713

@@ -1,0 +1,30 @@
+# Datasets (never push raw/processed)
+data/raw/*
+!data/raw/.keep
+data/processed/*
+!data/processed/.keep
+data/splits/*
+!data/splits/.keep
+
+# Results & checkpoints
+results/*
+!results/.keep
+experiments/*/results/*
+!experiments/*/results/.keep
+experiments/*/results/checkpoints/*
+*.pt
+*.pth
+*.npy
+*.hdf5
+*.zip
+
+# Cache & editor junk
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+.vscode/
+logs/
+wandb/
+
+.venv

@@ -1,0 +1,12 @@
+{
+  "PATCH_LEN": 50,
+  "EMBED_DIM": 256,
+  "NUM_LAYERS": 4,
+  "NUM_HEADS": 4,
+  "MLP_RATIO": 4,
+  "DROPOUT": 0.1,
+  "BATCH_SIZE": 32,
+  "LEARNING_RATE": 0.0003,
+  "EPOCHS": 20,
+  "SEED": 42
+}

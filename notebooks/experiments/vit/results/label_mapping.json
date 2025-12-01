@@ -1,0 +1,18 @@
+{
+  "label_to_idx": {
+    "CD": 0,
+    "HYP": 1,
+    "MI": 2,
+    "NORM": 3,
+    "STTC": 4,
+    "UNKNOWN": 5
+  },
+  "idx_to_label": {
+    "0": "CD",
+    "1": "HYP",
+    "2": "MI",
+    "3": "NORM",
+    "4": "STTC",
+    "5": "UNKNOWN"
+  }
+}
