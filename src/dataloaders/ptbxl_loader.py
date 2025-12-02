@@ -1,15 +1,45 @@
 """
-PTB-XL loader utilities.
+PTB-XL Loading and Standardized Preprocessing Interface.
 
-This module assumes the PTB-XL dataset is downloaded from PhysioNet
-and extracted in the following structure:
+This module provides a high-level generator-based loader for the PTB-XL
+dataset using the official WFDB waveform files. It is responsible for
+producing clean, uniformly processed ECG signals for downstream tasks.
 
-data/raw/ptbxl/
-    ptbxl_database.csv
-    scp_statements.csv
-    records100/
-    records500/
+Dataset Structure (Required):
+    data/raw/ptbxl/
+        ├── ptbxl_database.csv      # Metadata: IDs, file paths, demographics
+        ├── scp_statements.csv       # SCP-ECG diagnostic taxonomy
+        ├── records100/              # WFDB signals @ 100 Hz
+        └── records500/              # WFDB signals @ 500 Hz
+
+Processing Steps Per Record:
+    1. Load WFDB waveform (12-lead ECG)
+    2. Apply baseline/noise removal (high-pass, moving average, or band-pass)
+    3. Resample to target sampling rate (e.g., 400 Hz)
+    4. Pad/trim to fixed duration (e.g., 10 seconds)
+    5. Return normalized float32 array (T, 12)
+
+Output Schema:
+    Each yielded record is a dictionary:
+        {
+            "ecg_id": int,
+            "signal": np.ndarray (T, 12),   # preprocessed ECG
+            "fs": float,                    # final sampling frequency
+            "label": float,                 # Chagas label (always 0 for PTB-XL)
+        }
+
+Purpose:
+    This loader acts as the backbone for:
+        • 1D signal preprocessing (preprocess_ptbxl.py)
+        • 2D ECG image generation
+        • Foundation model pretraining datasets
+        • Hybrid signal–image training pipelines
+
+Notes:
+    PTB-XL is treated as *fully negative* for Chagas disease due to its
+    European origin, consistent with all Chagas detection literature.
 """
+
 
 from pathlib import Path
 from typing import Dict, Generator, Literal, Optional

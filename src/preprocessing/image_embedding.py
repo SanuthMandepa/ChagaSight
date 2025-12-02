@@ -1,16 +1,23 @@
 """
-ECG → 2D image embedding utilities.
+ECG → 2D structured image conversion.
 
-For the first implementation, we convert (T, 12) signals into
-a 3 × H × W "stacked leads" image:
+Implements the physiologically grounded image representation inspired by
+clinical lead placement:
 
-- H = num_leads (12)
-- W = temporal dimension (downsampled to e.g. 2048)
-- Channels = 3 (RGB-like), currently identical copies of the same map.
+    • RA, LA, LL reference contours
+    • Stacked multi-lead layout (H = number of leads)
+    • Amplitude clipping to [-3, +3]
+    • Linear mapping → [0, 255]
+    • Temporal interpolation to fixed width (e.g., 2048)
 
-Later, this can be extended to the full RA/LA/LL contour-based scheme
-as described in the "Embedding ECG Signals into 2D Images..." paper.
+Output images follow the format:
+        (3, H, W)
+
+This representation enables Vision Transformers (ViT) to process ECGs
+as structured spatial data while retaining inter-lead dependencies.
 """
+
+
 
 from typing import Tuple
 

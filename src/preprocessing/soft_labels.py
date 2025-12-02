@@ -1,6 +1,16 @@
 """
-Label utilities for Chagas classification across PTB-XL, CODE-15%, and SaMi-Trop.
+Unified Chagas label assignment.
+
+Implements the dataset-specific label confidence strategy:
+
+    • PTB-XL       → strong negative (0.0)
+    • SaMi-Trop    → strong positive (1.0)
+    • CODE-15%     → soft labels (0.2 / 0.8)
+
+Soft labeling for CODE-15% accounts for self-reported diagnostic noise
+and follows the methodology used in recent challenge-winning approaches.
 """
+
 
 from typing import Literal
 

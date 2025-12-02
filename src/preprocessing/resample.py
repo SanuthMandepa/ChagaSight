@@ -1,6 +1,18 @@
 """
 Resampling utilities for ECG signals.
+
+Includes:
+    • Polyphase resampling (resample_poly)
+    • Symmetric padding and center trimming
+    • Standardized time-axis normalization
+
+Used to unify heterogeneous datasets (100/400/500 Hz) into a
+common sampling frequency prior to image embedding or model training.
+
+Input:  (T, L)
+Output: (T_new, L)
 """
+
 
 from typing import Tuple
 

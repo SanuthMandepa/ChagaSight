@@ -1,9 +1,20 @@
 """
-Baseline removal utilities for ECG signals.
+Baseline and noise removal utilities for 12-lead ECG signals.
 
-All functions assume input shape: (num_samples, num_leads)
-and return an array with the same shape.
+This module provides preprocessing functions commonly used in clinical
+ECG research, including:
+
+    • High-pass filtering for baseline wander removal
+    • Band-pass filtering for general noise suppression
+    • Moving-average baseline estimation
+
+All functions operate on arrays of shape:
+        (T, L) → (time samples, number of leads)
+
+These filters form the first step of ECG standardization prior to
+resampling and normalization.
 """
+
 
 from typing import Literal
 
@@ -46,9 +57,57 @@ def highpass_filter(
     return filtfilt(b, a, signal, axis=0)
 
 
-def moving_average_baseline(signal: np.ndarray, window_seconds: float, fs: float) -> np.ndarray:
+def bandpass_filter(
+    signal: np.ndarray,
+    fs: float,
+    low_cut_hz: float = 0.5,
+    high_cut_hz: float = 45.0,
+    order: int = 4,
+) -> np.ndarray:
     """
-    Estimate and remove baseline using a moving-average filter.
+    ECG band-pass filter (e.g. 0.5–45 Hz), often used in ECG pipelines.
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        ECG array of shape (T, leads).
+    fs : float
+        Sampling frequency in Hz.
+    low_cut_hz : float
+        Low cutoff frequency in Hz.
+    high_cut_hz : float
+        High cutoff frequency in Hz.
+    order : int
+        Filter order.
+
+    Returns
+    -------
+    np.ndarray
+        Band-pass filtered ECG, same shape as input.
+    """
+    if signal.ndim != 2:
+        raise ValueError(f"signal must be 2D (T, leads), got shape {signal.shape}")
+
+    nyq = 0.5 * fs
+    low = low_cut_hz / nyq
+    high = high_cut_hz / nyq
+    if not (0.0 < low < high < 1.0):
+        raise ValueError(
+            f"Invalid bandpass normalized frequencies: low={low}, high={high}. "
+            "Check low_cut_hz, high_cut_hz and fs."
+        )
+
+    b, a = butter(order, [low, high], btype="band", analog=False)
+    return filtfilt(b, a, signal, axis=0)
+
+
+def moving_average_baseline(
+    signal: np.ndarray,
+    window_seconds: float,
+    fs: float,
+) -> np.ndarray:
+    """
+    Estimate baseline using a moving-average filter and subtract it.
 
     Parameters
     ----------
@@ -72,7 +131,10 @@ def moving_average_baseline(signal: np.ndarray, window_seconds: float, fs: float
     kernel = np.ones(window_samples, dtype=np.float32) / window_samples
 
     baseline = np.vstack(
-        [np.convolve(signal[:, lead], kernel, mode="same") for lead in range(signal.shape[1])]
+        [
+            np.convolve(signal[:, lead], kernel, mode="same")
+            for lead in range(signal.shape[1])
+        ]
     ).T
     return signal - baseline
 
@@ -80,11 +142,11 @@ def moving_average_baseline(signal: np.ndarray, window_seconds: float, fs: float
 def remove_baseline(
     signal: np.ndarray,
     fs: float,
-    method: Literal["highpass", "moving_average"] = "highpass",
+    method: Literal["highpass", "moving_average", "bandpass"] = "highpass",
     **kwargs,
 ) -> np.ndarray:
     """
-    Convenience wrapper to remove baseline with configurable method.
+    Convenience wrapper to remove baseline / filter ECG with configurable method.
 
     Parameters
     ----------
@@ -92,20 +154,25 @@ def remove_baseline(
         ECG array of shape (T, leads).
     fs : float
         Sampling frequency.
-    method : {"highpass", "moving_average"}
-        Baseline removal method.
+    method : {"highpass", "moving_average", "bandpass"}
+        Baseline removal / filtering method.
     kwargs : dict
         Extra args passed to the underlying method.
 
     Returns
     -------
     np.ndarray
-        Baseline-corrected ECG.
+        Filtered ECG.
     """
     if method == "highpass":
+        # kwargs: cutoff_hz, order
         return highpass_filter(signal, fs=fs, **kwargs)
     elif method == "moving_average":
+        # kwargs: window_seconds
         window_seconds = kwargs.get("window_seconds", 0.8)
         return moving_average_baseline(signal, window_seconds=window_seconds, fs=fs)
+    elif method == "bandpass":
+        # kwargs: low_cut_hz, high_cut_hz, order
+        return bandpass_filter(signal, fs=fs, **kwargs)
     else:
         raise ValueError(f"Unknown baseline removal method: {method}")
