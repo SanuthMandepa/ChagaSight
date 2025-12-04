@@ -1,37 +1,37 @@
 🧬 **ChagaSight — A Vision Transformer–Based ECG Image Pipeline for Chagas Disease Detection**
 
-A Final-Year Research Project using Physiologically Structured 2D ECG Images and Optional 1D ECG Foundation Models
+        A Final-Year Research Project using Physiologically Structured 2D ECG Images and Optional 1D ECG Foundation Models
 
-ChagaSight is a modular deep-learning framework designed to detect Chagas disease from 12-lead ECGs.
-This project focuses primarily on transforming ECG signals into physiologically structured 2D images and training a Vision Transformer (ViT) classifier on these images.
+        ChagaSight is a modular deep-learning framework designed to detect Chagas disease from 12-lead ECGs.
+        This project focuses primarily on transforming ECG signals into physiologically structured 2D images and training a Vision Transformer (ViT) classifier on these images.
 
-In addition, ChagaSight includes an optional extension exploring a 1D ECG Foundation Model (FM) based on masked self-supervised pretraining (ST-MEM), and an optional hybrid alignment model that links 1D signal embeddings with 2D image embeddings.
+        In addition, ChagaSight includes an optional extension exploring a 1D ECG Foundation Model (FM) based on masked self-supervised pretraining (ST-MEM), and an optional hybrid alignment model that links 1D signal embeddings with 2D image embeddings.
 
-The approach is inspired by two modern research pipelines:
+        The approach is inspired by two modern research pipelines:
 
-Physiologically Structured 2D ECG Image Embedding (2025)
+        Physiologically Structured 2D ECG Image Embedding (2025)
 
-Vision Transformer Foundation Model for ECGs (2025)
+        Vision Transformer Foundation Model for ECGs (2025)
 
 # 📌 1. Project Overview
 
-ChagaSight provides an end-to-end workflow for multi-dataset ECG processing, image generation, model training, and evaluation.
+        ChagaSight provides an end-to-end workflow for multi-dataset ECG processing, image generation, model training, and evaluation.
 
-✔ Multi-Dataset ECG Preprocessing
-PTB-XL, CODE-15%, and SaMi-Trop are unified by cleaning, resampling, trimming, and normalizing all signals.
+        ✔ Multi-Dataset ECG Preprocessing
+        PTB-XL, CODE-15%, and SaMi-Trop are unified by cleaning, resampling, trimming, and normalizing all signals.
 
-✔ 2D ECG Image Representation (PRIMARY METHOD)
-ECGs are converted into structured 3-channel images using RA/LA/LL contour mapping, producing ViT-ready images (3 × 24 × 2048).
+        ✔ 2D ECG Image Representation (PRIMARY METHOD)
+        ECGs are converted into structured 3-channel images using RA/LA/LL contour mapping, producing ViT-ready images (3 × 24 × 2048).
 
-✔ Vision Transformer (ViT) Image Classifier (MAIN MODEL)
-The primary dissertation model: a ViT trained on 2D ECG images to classify Chagas disease.
+        ✔ Vision Transformer (ViT) Image Classifier (MAIN MODEL)
+        The primary dissertation model: a ViT trained on 2D ECG images to classify Chagas disease.
 
-✔ Optional: ECG Foundation Model (1D ViT-FM)
-A transformer encoder trained using ST-MEM masked reconstruction for advanced representation learning.
+        ✔ Optional: ECG Foundation Model (1D ViT-FM)
+        A transformer encoder trained using ST-MEM masked reconstruction for advanced representation learning.
 
-✔ Optional: Hybrid FM + ViT Alignment
-A REPA-style cosine alignment loss linking 1D FM embeddings with 2D ViT image embeddings for robustness.
-This structure enables a scalable, research-grade pipeline suitable for academic evaluation and future clinical studies.
+        ✔ Optional: Hybrid FM + ViT Alignment
+        A REPA-style cosine alignment loss linking 1D FM embeddings with 2D ViT image embeddings for robustness.
+        This structure enables a scalable, research-grade pipeline suitable for academic evaluation and future clinical studies.
 
 ---
 
