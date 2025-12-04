@@ -1,46 +1,43 @@
-# 🧬 ChagaSight — ViT-Based ECG Image & Foundation Model Pipeline for Chagas Disease Detection
+🧬 **ChagaSight — A Vision Transformer–Based ECG Image Pipeline for Chagas Disease Detection**
 
-_A Multi-Dataset, Reproducible Research Framework using 2D Vision Transformers (ViT), 1D ECG Foundation Models (FM), and Hybrid Feature Alignment._
+A Final-Year Research Project using Physiologically Structured 2D ECG Images and Optional 1D ECG Foundation Models
 
-ChagaSight is a modular deep-learning framework for **Chagas disease detection** from **12-lead ECGs**, integrating:
+ChagaSight is a modular deep-learning framework designed to detect Chagas disease from 12-lead ECGs.
+This project focuses primarily on transforming ECG signals into physiologically structured 2D images and training a Vision Transformer (ViT) classifier on these images.
 
-- **2D Vision Transformer (ViT)** trained on physiologically structured ECG images
-- **1D Vision Transformer Foundation Model (ECG-FM)** trained via masked self-supervision (ST-MEM)
-- **Hybrid Alignment Model** aligning FM signal-level representations with ViT image embeddings
+In addition, ChagaSight includes an optional extension exploring a 1D ECG Foundation Model (FM) based on masked self-supervised pretraining (ST-MEM), and an optional hybrid alignment model that links 1D signal embeddings with 2D image embeddings.
 
-The pipeline draws from two modern research advancements:
+The approach is inspired by two modern research pipelines:
 
-- _Detecting Chagas Disease Using a Vision Transformer–Based ECG Foundation Model (2025)_
-- _Embedding ECG Signals into 2D Images with Preserved Spatial Information (2025)_
+Physiologically Structured 2D ECG Image Embedding (2025)
 
----
+Vision Transformer Foundation Model for ECGs (2025)
 
 # 📌 1. Project Overview
 
-ChagaSight provides an end-to-end deep learning workflow for handling ECG signals and images:
+ChagaSight provides an end-to-end workflow for multi-dataset ECG processing, image generation, model training, and evaluation.
 
-### ✔ Multi-dataset preprocessing (PTB-XL, CODE-15%, SaMi-Trop)
+✔ Multi-Dataset ECG Preprocessing
+PTB-XL, CODE-15%, and SaMi-Trop are unified by cleaning, resampling, trimming, and normalizing all signals.
 
-### ✔ Two complementary modeling paths
+✔ 2D ECG Image Representation (PRIMARY METHOD)
+ECGs are converted into structured 3-channel images using RA/LA/LL contour mapping, producing ViT-ready images (3 × 24 × 2048).
 
-- **2D ViT Image Classifier** (primary baseline model)
-- **1D Foundation Model (FM)** for ECG signal representation
+✔ Vision Transformer (ViT) Image Classifier (MAIN MODEL)
+The primary dissertation model: a ViT trained on 2D ECG images to classify Chagas disease.
 
-### ✔ Hybrid feature alignment (optional extension)
+✔ Optional: ECG Foundation Model (1D ViT-FM)
+A transformer encoder trained using ST-MEM masked reconstruction for advanced representation learning.
 
-### ✔ Challenge-oriented evaluation
-
-- Top-5% TPR (PhysioNet metric)
-- AUROC, AUPRC, F1
-- Grad-CAM for both signals & images
-
-The framework is designed so that **ViT image-based modeling is implemented first**, and **the ECG Foundation Model can be integrated later** for improved robustness and transfer learning.
+✔ Optional: Hybrid FM + ViT Alignment
+A REPA-style cosine alignment loss linking 1D FM embeddings with 2D ViT image embeddings for robustness.
+This structure enables a scalable, research-grade pipeline suitable for academic evaluation and future clinical studies.
 
 ---
 
 # 📊 2. Supported Datasets
 
-ChagaSight supports the three open-access 12-lead ECG datasets used in the George Moody PhysioNet Challenge (2025):
+ChagaSight supports three widely used 12-lead ECG datasets in modern ECG AI research:
 
 | Dataset       | Description                          | Sample Rate | Chagas Label               |
 | ------------- | ------------------------------------ | ----------- | -------------------------- |
@@ -65,88 +62,94 @@ Consistent with state-of-the-art research:
 ChagaSight/
 │
 ├── data/
-│ ├── raw/
-│ │ ├── ptbxl/
-│ │ ├── code15/
-│ │ └── sami_trop/
+│ ├── raw/ # Original unmodified ECG datasets
+│ │ ├── ptbxl/ # PTB-XL (100 Hz / 500 Hz WFDB files)
+│ │ ├── code15/ # CODE-15% Brazil dataset (raw ECGs)
+│ │ └── sami_trop/ # SaMi-Trop serology-confirmed Chagas dataset
+│ │
 │ ├── processed/
-│ │ ├── 1d_signals/ # baseline-corrected, resampled, z-scored
-│ │ └── 2d_images/ # structured 3-channel ECG images (24×2048)
-│ └── splits/ # patient-level train/val/test JSON
+│ │ ├── 1d_signals/ # Cleaned, resampled ECG (1D numpy arrays)
+│ │ │ # → Baseline-removed, resampled, normalized
+│ │ └── 2d_images/ # 2D structured ECG images (3 × 24 × 2048)
+│ │ # → Final input format for Vision Transformer
+│ │
+│ └── splits/ # Patient-level train/val/test splits (JSON)
 │
-├── src/
+├── src/ # All source code
 │ ├── preprocessing/
-│ │ ├── baseline_removal.py
-│ │ ├── resample.py
-│ │ ├── image_embedding.py # RA/LA/LL contour → 2D images
-│ │ └── soft_labels.py
+│ │ ├── baseline_removal.py # High-pass / band-pass filtering
+│ │ ├── resample.py # Resampling to 400 Hz + padding & trimming
+│ │ ├── normalization.py # Per-lead z-score normalization utilities
+│ │ ├── image_embedding.py # ECG → 2D image conversion (RA/LA/LL channels)
+│ │ └── soft_labels.py # Soft-label generation for CODE-15% dataset
 │ │
-│ ├── foundation_model/
-│ │ ├── vit_1d_encoder.py
-│ │ ├── st_mem_pretraining.py
-│ │ ├── aol_mixing.py
-│ │ └── fm_feature_extractor.py
+│ ├── foundation_model/ # OPTIONAL — For ECG Foundation Model (1D FM)
+│ │ ├── vit_1d_encoder.py # 1D ViT backbone for ECG signals
+│ │ ├── st_mem_pretraining.py # Masked self-supervised training (ST-MEM)
+│ │ ├── aol_mixing.py # Aggregation of Layers (AoL) module
+│ │ └── fm_feature_extractor.py # Extract FM embeddings for hybrid models
 │ │
-│ ├── image_model/
-│ │ ├── vit_image_encoder.py
-│ │ ├── projection_head.py
-│ │ └── alignment_loss.py
+│ ├── image_model/ # MAIN MODEL — ViT image classifier
+│ │ ├── vit_image_encoder.py # Vision Transformer backbone for ECG images
+│ │ ├── projection_head.py # Linear head for classification
+│ │ └── alignment_loss.py # Loss for hybrid FM + ViT alignment
 │ │
 │ ├── dataloaders/
-│ │ ├── ptbxl_loader.py
-│ │ ├── code15_loader.py
-│ │ ├── sami_loader.py
-│ │ ├── fm_signal_dataset.py
-│ │ └── image_dataset.py
+│ │ ├── ptbxl_loader.py # PTB-XL dataloader (1D + 2D modes)
+│ │ ├── code15_loader.py # CODE-15% loader with soft labels
+│ │ ├── sami_loader.py # SaMi-Trop Chagas dataset loader
+│ │ ├── fm_signal_dataset.py # Dataset for training 1D Foundation Model (FM)
+│ │ └── image_dataset.py # Dataloader for ECG image-based ViT training
 │ │
 │ ├── training/
-│ │ ├── train_fm.py # 1D FM pretraining (ST-MEM)
-│ │ ├── train_image_model.py # 2D ViT classifier
-│ │ ├── train_hybrid.py # FM + ViT alignment
-│ │ ├── augmentations_1d.py
-│ │ └── augmentations_2d.py
+│ │ ├── train_image_model.py # MAIN TRAINER — Vision Transformer training
+│ │ ├── train_fm.py # OPTIONAL — Training the ECG Foundation Model
+│ │ ├── train_hybrid.py # OPTIONAL — FM + ViT hybrid alignment training
+│ │ ├── augmentations_1d.py # 1D ECG augmentations for FM
+│ │ └── augmentations_2d.py # 2D ECG image augmentations for ViT
 │ │
 │ └── evaluation/
-│ ├── metrics.py
-│ ├── explainability.py
-│ └── challenge_metric.py
+│ ├── metrics.py # AUROC, AUPRC, F1, calibration metrics
+│ ├── explainability.py # Grad-CAM for images + FM attention maps
+│ └── challenge_metric.py # Top-K TPR scoring utilities
 │
-├── scripts/ # <--- THIS IS THE FOLDER YOU ASKED FOR
-│ ├── preprocess_ptbxl.py # run preprocessing for PTB-XL
-│ ├── preprocess_code15.py # run preprocessing for CODE-15%
-│ ├── preprocess_samitrop.py # run preprocessing for SaMi-Trop
-│ ├── build_images.py # convert 1D → 2D ECG images
-│ ├── create_splits.py # build patient-level splits
-│ ├── train_vit_image.sh # shell script for ViT training
-│ ├── train_fm.sh # shell script for FM training
-│ └── train_hybrid.sh # shell script for hybrid alignment
+├── scripts/ # Executable scripts for full pipeline
+│ ├── preprocess_ptbxl.py # Preprocess PTB-XL (Stage 1: 1D)
+│ ├── preprocess_code15.py # Preprocess CODE-15% (Stage 1)
+│ ├── preprocess_samitrop.py # Preprocess SaMi-Trop (Stage 1)
+│ ├── build_images.py # Stage 2: ECG → 2D image creation
+│ ├── create_splits.py # Build train/val/test splits
+│ ├── train_vit_image.sh # Shell script: Train ViT model
+│ ├── train_fm.sh # Shell script: Train FM model (optional)
+│ └── train_hybrid.sh # Shell script: Hybrid alignment training
 │
-├── notebooks/
-│ ├── 01_preprocessing_1d.ipynb
-│ ├── 02_image_embedding.ipynb
-│ ├── 03_fm_pretraining.ipynb
-│ ├── 04_cross_validation.ipynb
+├── notebooks/ # Development + documentation notebooks
+│ ├── 01_preprocessing_1d.ipynb # Preprocess ECG into 1D format
+│ ├── 02_image_embedding.ipynb # Convert 1D → 2D images
+│ ├── 03_fm_pretraining.ipynb # OPTIONAL — FM masked training
+│ ├── 04_cross_validation.ipynb # Model validation experiments
 │ ├── 05_hybrid_alignment_training.ipynb
-│ └── 06_evaluation.ipynb
+│ └── 06_evaluation.ipynb # Visualisations + performance metrics
 │
 ├── docs/
-│ ├── methodology/
-│ │ ├── fm_architecture.md
-│ │ ├── image_embedding_diagram.png
-│ │ └── augmentation_strategy.md
-│ ├── figures/
-│ ├── reports/
-│ └── diagrams/
+│ ├── methodology/ # Dissertation-ready documentation
+│ │ ├── fm_architecture.md # 1D FM architecture explanation
+│ │ ├── image_embedding_diagram.png # 2D ECG image pipeline visualisation
+│ │ └── augmentation_strategy.md # Full augmentation design
+│ │
+│ ├── figures/ # Figures for thesis/report
+│ ├── reports/ # Auto-generated experiment summaries
+│ └── diagrams/ # Flowcharts, system diagrams, etc.
 │
-├── experiments/
-│ ├── fm_pretraining/
-│ ├── image_baseline/
-│ ├── hybrid_alignment/
-│ └── logs/
+├── experiments/ # Saved experimental runs
+│ ├── image_baseline/ # ViT image model results
+│ ├── fm_pretraining/ # FM pretraining logs
+│ └── hybrid_alignment/ # Hybrid model experiments
 │
-├── results/ # gitignored
-├── requirements.txt
-└── README.md
+├── results/ # Outputs (excluded from Git)
+│
+├── requirements.txt # Python dependencies
+└── README.md # Project documentation
 
 ---
 
@@ -158,44 +161,47 @@ ChagaSight adopts a **two-stage preprocessing strategy** inspired by recent ECG 
 
 - Baseline drift removal
 - Resampling to a unified frequency
-- Trim/pad to a fixed duration
-- Z-score normalization
-- Save as `.npy` per record
+- Padding/trimming to fixed duration (10s)
+- Per-lead z-score normalization
+- Saving as .npy 1D arrays
+
+Output directory:
+data/processed/1d_signals/
 
 ## **Stage 2 — ECG → Structured 2D Image Conversion**
 
-Based on physiologically meaningful lead contour maps:
+Using physiologically meaningful RA/LA/LL contour mapping:
 
-- Construct 3 channels representing RA, LA, LL reference contours
-- Clip signal to [−3, 3]
-- Map amplitude to [0–255]
-- Resize to **3 × 24 × 2048**
-- Save as `.npy` or `.png`
+- Construct 3 channels representing RA, LA, LL contours
+- Subtract reference lead (augmented limb lead)
+- Clip amplitudes to [-3, 3]
+- Scale to pixel range [0–255]
+- Resize to 3 × 24 × 2048
 
-This representation is **optimized for Vision Transformer input**.
+Output directory:
+data/processed/2d_images/
+
+This format is optimized for Vision Transformers.
 
 ---
 
 # 🧠 5. Model Components
 
-## **A. 2D ViT Image Encoder (Primary Model)**
+## **A. Vision Transformer (MAIN MODEL)**
 
 - Input: structured ECG images
 - Patch embeddings adapted for rectangular biomedical images
-- Outputs:
-  - Classification logits
-  - Image-level latent embeddings
+- Output: disease probability + latent embeddings
 
-This is the **primary baseline model** and the recommended starting point for experimentation.
+## This is the primary deliverable of the final-year project.
 
----
+## **B. ECG Foundation Model (OPTIONAL EXTENSION)**
 
-## **B. 1D Vision Transformer Foundation Model (Optional Extension)**
+A 1D Vision Transformer (12 layers) trained using:
 
-- 12-layer encoder
+- ST-MEM masked self-supervised learning
 - Patch size = 50
-- Self-supervised training: **ST-MEM masked ECG reconstruction**
-- Multi-layer feature aggregation (AoL)
+- Aggregation of Layers (AoL)
 
 Provides robust signal-level ECG embeddings, especially useful in low-label or multi-dataset setups.
 
@@ -203,13 +209,11 @@ Provides robust signal-level ECG embeddings, especially useful in low-label or m
 
 ## **C. Hybrid FM + ViT Alignment Model (Optional Advanced Model)**
 
-A REPA-inspired alignment loss encourages consistency between signal embeddings (1D FM) and image embeddings (2D ViT):
+A REPA-inspired loss encourages ViT and FM feature alignment:
 
-L_total = L_classification + λ \* cosine_similarity(FM_features, ViT_features)
+L_total = L_classification + λ · cosine_similarity(FM_features, ViT_features)
 
-This enhances invariance and robustness to confounders (e.g., sampling frequency, noise).
-
----
+## Used for robustness and dataset-shift resistance.
 
 # 🧪 6. Training Workflow
 
@@ -217,71 +221,103 @@ This enhances invariance and robustness to confounders (e.g., sampling frequency
 
 notebooks/01_preprocessing_1d.ipynb
 
-### **2. Convert Processed Signals to Images**
+### **2. Convert 1D Signals to 2D Images**
 
 notebooks/02_image_embedding.ipynb
 
-### **3. Train the ViT Image Baseline (recommended first model)**
+### **3. Train Vision Transformer (Main Model)**
 
 python src/training/train_image_model.py
 
-### **4. (Optional) Pretrain 1D ECG Foundation Model**
+### **4. Evaluate ViT Model**
+
+    AUROC
+    AUPRC
+    F1
+    Calibration
+    Grad-CAM
+
+### **5. (Optional) Train ECG Foundation Model**
 
 python src/training/train_fm.py
 
-### **5. (Optional) Train Hybrid Alignment Model**
+### **6. (Optional) Train Hybrid Model**
 
 python src/training/train_hybrid.py
-
-### **6. Evaluate**
-
-python src/evaluation/metrics.py
 
 ---
 
 # 📈 7. Evaluation Metrics
 
-- PhysioNet Challenge Top-5% TPR
-- AUROC / AUPRC
-- F1-score
-- Calibration metrics
-- Confusion matrices
-- Signal-level + Image-level Grad-CAM
-- Dataset shift robustness tests
+    AUROC
+    AUPRC
+    Accuracy & F1
+    Top-K screening sensitivity
+    Calibration curves
+    Confusion matrices
+    Grad-CAM (image & signal attention)
 
 ---
 
 # 🔍 8. Key Contributions of This Pipeline
 
-### **2D ViT Image Modeling**
+**✔ Physiologically Structured 2D ECG Image Pipeline**
+A high-fidelity image representation built on limb-lead reference mapping.
 
-- Enables direct use of modern vision architectures
-- Uses physiologically accurate multi-channel ECG image construction
+**✔ Vision Transformer Baseline Model (Main Output)**
+The primary focus of the dissertation.
 
-### **1D ECG Foundation Modeling**
+**✔ Optional 1D Foundation Model (Advanced)**
+Implements contemporary masked ECG self-supervision.
 
-- Captures deep, transferable ECG signal characteristics
-- Based on ST-MEM masked self-supervised learning
+**✔ Optional Hybrid Feature Alignment**
+Bridges image-based and signal-based features.
 
-### **Hybrid Alignment**
-
-- Leverages both signal and image representations
-- Improves generalization and robustness
-
-### **Multi-Dataset Unified Framework**
-
-- PTB-XL, CODE-15%, SaMi-Trop integrated under one consistent pipeline
+**✔ Unified Multi-Dataset Workflow**
+A single preprocessing and training pipeline across PTB-XL, CODE-15%, SaMi-Trop.
 
 ---
 
 # 🚀 9. Roadmap
 
-- [ ] Complete preprocessing for all datasets
-- [ ] Train ViT image baseline
-- [ ] Train ECG-FM using ST-MEM
-- [ ] Integrate hybrid alignment
-- [ ] Perform 5-fold cross-validation
-- [ ] Generate final evaluation report with visual explanations
+[ ] Phase 1 — 1D ECG Preprocessing (Required)
+
+    Clean and normalize all datasets
+    Resample, trim, pad
+    Save as .npy 1D signals
+
+[ ] Phase 2 — Structured 2D Image Generation (Required)
+
+    Produce 3-channel structured images
+    Validate RA/LA/LL mapping
+    Save to processed/2d_images/
+
+[ ] Phase 3 — Train Vision Transformer (Required)
+
+    Train ViT classifier
+    Evaluate AUROC / AUPRC / F1
+
+[ ] Phase 4 — ECG Foundation Model (Optional)
+
+    ST-MEM masked pretraining
+    Extract FM embeddings
+
+[ ] Phase 5 — Hybrid Alignment (Optional)
+
+    Train joint FM + ViT model
+    Apply alignment loss
+
+[ ] Phase 6 — Evaluation & Explainability (Required)
+
+    Grad-CAM
+    Calibration curves
+    Dataset-shift analysis
+
+[ ] Phase 7 — Dissertation Deliverables (Required)
+
+    Write methodology chapter
+    Include all diagrams
+    Present results, comparison, limitations
 
 ---
 
