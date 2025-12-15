@@ -23,6 +23,7 @@ import wfdb
 
 from src.preprocessing.baseline_removal import remove_baseline
 from src.preprocessing.resample import resample_ecg, pad_or_trim
+from src.preprocessing.normalization import zscore_per_lead
 
 
 # -------------------------------------------------------------------------
@@ -93,10 +94,8 @@ def preprocess_single_record(
     target_len = int(round(duration_sec * fs_rs))
     signal = pad_or_trim(signal, target_length=target_len)  # (T_fixed, leads)
 
-    # 4) Per-lead z-score normalization
-    mean = signal.mean(axis=0, keepdims=True)
-    std = signal.std(axis=0, keepdims=True) + 1e-8
-    signal = (signal - mean) / std
+    # 4) Per-lead z-score normalization (using the function from normalization.py)
+    signal = zscore_per_lead(signal)
 
     return signal.astype(np.float32)
 
