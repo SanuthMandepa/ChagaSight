@@ -45,32 +45,6 @@ from src.preprocessing.normalization import zscore_per_lead
 
 
 # -------------------------------------------------------------------------
-# Simple reusable timer helper (can be reused across scripts)
-# -------------------------------------------------------------------------
-
-
-class TaskTimer:
-    """
-    Utility to measure wall-clock runtime of a task.
-
-    Usage:
-        timer = TaskTimer("SaMi-Trop preprocessing")
-        ...
-        timer.done()
-    """
-
-    def __init__(self, task_name: str = "Task"):
-        self.task_name = task_name
-        self.start_time = time.time()
-        print(f"\n⏱️ Starting: {self.task_name}")
-
-    def done(self):
-        elapsed = time.time() - self.start_time
-        mins = elapsed / 60.0
-        print(f"⏱️ {self.task_name} completed in {elapsed:.2f} s ({mins:.2f} min)\n")
-
-
-# -------------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------------
 
@@ -156,9 +130,6 @@ def preprocess_single_exam(
 
 
 def main():
-    # Timer for the whole script
-    timer = TaskTimer("SaMi-Trop 1D preprocessing")
-
     # 1) Load metadata CSV
     csv_path = SAMI_ROOT / "exams.csv"
     if not csv_path.exists():
@@ -229,8 +200,6 @@ def main():
     # 5) Close HDF5 file
     h5_file.close()
 
-    # 6) Finish timer
-    timer.done()
     print("✅ SaMi-Trop preprocessing complete.")
 
 
