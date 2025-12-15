@@ -16,7 +16,7 @@ resampling and normalization.
 """
 
 
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 from scipy.signal import butter, filtfilt
@@ -52,8 +52,11 @@ def highpass_filter(
 
     nyq = 0.5 * fs
     normalized_cutoff = cutoff_hz / nyq
+    
+    # Butterworth filter design
     b, a = butter(order, normalized_cutoff, btype="high", analog=False)
-    # filtfilt to avoid phase distortion
+    
+    # Apply filtfilt for zero-phase filtering
     return filtfilt(b, a, signal, axis=0)
 
 
@@ -91,6 +94,7 @@ def bandpass_filter(
     nyq = 0.5 * fs
     low = low_cut_hz / nyq
     high = high_cut_hz / nyq
+    
     if not (0.0 < low < high < 1.0):
         raise ValueError(
             f"Invalid bandpass normalized frequencies: low={low}, high={high}. "
@@ -127,15 +131,21 @@ def moving_average_baseline(
         raise ValueError(f"signal must be 2D (T, leads), got shape {signal.shape}")
 
     window_samples = int(max(1, round(window_seconds * fs)))
-    # Simple 1D moving average kernel
-    kernel = np.ones(window_samples, dtype=np.float32) / window_samples
-
-    baseline = np.vstack(
-        [
-            np.convolve(signal[:, lead], kernel, mode="same")
-            for lead in range(signal.shape[1])
-        ]
-    ).T
+    
+    # Ensure window is odd for symmetric convolution
+    if window_samples % 2 == 0:
+        window_samples += 1
+    
+    # Create moving average kernel
+    kernel = np.ones(window_samples) / window_samples
+    
+    # Apply convolution to each lead separately with mode='same'
+    # Use reflect padding to handle edges
+    baseline = np.array([
+        np.convolve(signal[:, lead], kernel, mode='same')
+        for lead in range(signal.shape[1])
+    ]).T
+    
     return signal - baseline
 
 
@@ -156,7 +166,7 @@ def remove_baseline(
         Sampling frequency.
     method : {"highpass", "moving_average", "bandpass"}
         Baseline removal / filtering method.
-    kwargs : dict
+    **kwargs : dict
         Extra args passed to the underlying method.
 
     Returns
@@ -164,15 +174,24 @@ def remove_baseline(
     np.ndarray
         Filtered ECG.
     """
+    # Convert to float32 for numerical stability
+    signal = signal.astype(np.float32)
+    
     if method == "highpass":
-        # kwargs: cutoff_hz, order
-        return highpass_filter(signal, fs=fs, **kwargs)
+        cutoff_hz = kwargs.get("cutoff_hz", 0.7)
+        order = kwargs.get("order", 3)
+        return highpass_filter(signal, fs=fs, cutoff_hz=cutoff_hz, order=order)
+    
     elif method == "moving_average":
-        # kwargs: window_seconds
         window_seconds = kwargs.get("window_seconds", 0.8)
         return moving_average_baseline(signal, window_seconds=window_seconds, fs=fs)
+    
     elif method == "bandpass":
-        # kwargs: low_cut_hz, high_cut_hz, order
-        return bandpass_filter(signal, fs=fs, **kwargs)
+        low_cut_hz = kwargs.get("low_cut_hz", 0.5)
+        high_cut_hz = kwargs.get("high_cut_hz", 45.0)
+        order = kwargs.get("order", 4)
+        return bandpass_filter(signal, fs=fs, low_cut_hz=low_cut_hz, 
+                              high_cut_hz=high_cut_hz, order=order)
+    
     else:
         raise ValueError(f"Unknown baseline removal method: {method}")
