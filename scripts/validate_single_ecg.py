@@ -66,6 +66,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from typing import Dict, Tuple
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -196,8 +197,8 @@ def load_raw_code15(exam_id: int) -> Tuple[np.ndarray, float]:
     trace_file = CODE_RAW / row.iloc[0]["trace_file"]
 
     with h5py.File(trace_file, "r") as f:
-        exam_ids = np.asarray(f["exam_id"])
-        idx_arr = np.where(exam_ids == exam_id)[0]
+        ids = np.asarray(f["exam_id"])
+        idx_arr = np.where(ids == exam_id)[0]
         if len(idx_arr) == 0:
             raise ValueError(f"exam_id {exam_id} not present inside {trace_file}")
         idx = int(idx_arr[0])
@@ -210,7 +211,7 @@ def load_raw_code15(exam_id: int) -> Tuple[np.ndarray, float]:
 
 
 # ============================================================
-# PREPROCESSING PIPELINE (EXACTLY MATCHING YOUR SCRIPTS)
+# PREPROCESSING PIPELINE (UPDATED for new function signatures)
 # ============================================================
 
 def run_pipeline(raw: np.ndarray, fs_in: float) -> Dict[str, np.ndarray]:
@@ -219,22 +220,20 @@ def run_pipeline(raw: np.ndarray, fs_in: float) -> Dict[str, np.ndarray]:
 
         1) remove_baseline(raw, fs=fs_in)
         2) resample_ecg(..., fs_in, TARGET_FS)
-           (handles implementations that return signal or (signal, fs))
+           (now returns (signal, fs) tuple)
         3) pad_or_trim(..., TARGET_LEN)
         4) zscore_per_lead(...)
 
     Returns a dict of all stages so we can plot each one.
     """
     print("  → Baseline removal")
-    baseline = remove_baseline(raw, fs=fs_in)
-
+    # Use default baseline removal (highpass for PTB-XL, moving_average for others)
+    baseline_method = "highpass" if fs_in == 100.0 else "moving_average"
+    baseline = remove_baseline(raw, fs=fs_in, method=baseline_method)
+    
     print("  → Resample to 400 Hz")
-    resampled_out = resample_ecg(baseline, fs_in, TARGET_FS)
-    # Some versions return (signal, new_fs), others just signal
-    if isinstance(resampled_out, tuple):
-        resampled = resampled_out[0]
-    else:
-        resampled = resampled_out
+    # UPDATED: resample_ecg now returns (signal, fs)
+    resampled, fs_out = resample_ecg(baseline, fs_in, TARGET_FS)
 
     print("  → Pad/Trim to 10s (4000 samples)")
     fixed = pad_or_trim(resampled, TARGET_LEN)
@@ -246,6 +245,7 @@ def run_pipeline(raw: np.ndarray, fs_in: float) -> Dict[str, np.ndarray]:
         "raw": raw,
         "baseline": baseline,
         "resampled": resampled,
+        "fs_resampled": fs_out,  # Keep track of resampled fs
         "fixed": fixed,
         "zscore": z,
     }
@@ -666,27 +666,38 @@ def validate_single_ecg(dataset: str,
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
+    print(f"  Raw signal: {raw.shape}, fs={fs}")
+    print(f"  Processed 1D path: {sig_path}")
+    print(f"  Processed 2D path: {img_path}")
+
     # 2) Re-run pipeline step-by-step
+    print("\n  Re-running preprocessing pipeline:")
     stages = run_pipeline(raw, fs)
-    print("  [CHECK] final z-scored shape:", stages["zscore"].shape)
+    print(f"  [CHECK] final z-scored shape: {stages['zscore'].shape}")
 
     # 3) Optionally compare with saved processed 1D (sanity check)
     if sig_path.exists():
-        proc_disk = np.load(sig_path)
-        if proc_disk.shape == stages["zscore"].shape:
-            diff = np.abs(proc_disk - stages["zscore"]).mean()
-            print(f"  [CHECK] mean |disk − recomputed| = {diff:.6e}")
-        else:
-            print(
-                f"  ⚠ Processed 1D on disk has shape {proc_disk.shape}, "
-                f"but recomputed pipeline has shape {stages['zscore'].shape}"
-            )
+        try:
+            proc_disk = np.load(sig_path)
+            if proc_disk.shape == stages["zscore"].shape:
+                diff = np.abs(proc_disk - stages["zscore"]).mean()
+                print(f"  [CHECK] mean |disk − recomputed| = {diff:.6e}")
+                if diff > 1e-5:
+                    warnings.warn(f"Significant difference between disk and recomputed: {diff:.2e}")
+            else:
+                print(
+                    f"  ⚠ Processed 1D on disk has shape {proc_disk.shape}, "
+                    f"but recomputed pipeline has shape {stages['zscore'].shape}"
+                )
+        except Exception as e:
+            print(f"  ⚠ Could not compare with disk file: {e}")
     else:
         print(f"  ⚠ Processed 1D .npy not found at {sig_path}")
 
     # 4) Load 2D contour image
     if not img_path.exists():
         raise FileNotFoundError(f"2D image file not found: {img_path}")
+    
     img = np.load(img_path)
     if img.ndim == 4:
         img = img[0]
@@ -694,23 +705,29 @@ def validate_single_ecg(dataset: str,
 
     # 5) Produce all plots in sorted order
     out_dir = ensure_outdir(dataset, ecg_id)
+    print(f"\n  Saving plots to: {out_dir}")
 
     # 1D time-domain stages + overlays
+    print("  Creating 1D stage plots (01-11)...")
     plot_stages(stages, fs, out_dir, dataset, ecg_id)
     plot_overlay_stage_pairs(stages, fs, out_dir, dataset, ecg_id)
     plot_lead_grids(stages, fs, out_dir, dataset, ecg_id)
     plot_spectrograms(stages, fs, out_dir, dataset, ecg_id)
 
     # 2D image-space diagnostics
+    print("  Creating 2D image plots (12-16)...")
     plot_image_views(img, out_dir, dataset, ecg_id, row=row)
 
     # statistics & correlations
+    print("  Creating statistical plots (17-20)...")
     plot_statistics_and_correlations(stages, img, out_dir, dataset, ecg_id)
 
     # 1D ↔ 2D comparisons (row-wise)
+    print("  Creating 1D↔2D comparison plots (21-23)...")
     plot_pairwise_1d_2d(stages, img, fs, out_dir, dataset, ecg_id, row=row)
 
-    print(f"\n✔ Finished. See folder:\n{out_dir}\n")
+    print(f"\n✔ Finished. Created {len(list(out_dir.glob('*.png')))} plots.")
+    print(f"  Output folder:\n{out_dir}\n")
 
 
 # ============================================================
@@ -759,321 +776,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-# """
-# Visual sanity-check for ONE ECG across the full pipeline:
-# raw → baseline-removed → resampled → fixed-length → z-scored → 2D image
-
-# Works for all datasets:
-# - PTB-XL (WFDB raw)
-# - SaMi-Trop (exams.hdf5)
-# - CODE-15% (sharded HDF5)
-
-# OUTPUT FOLDER:
-# notebooks/verification_outputs/pipeline/<dataset>/ecg_<ID>/
-# """
-
-# from __future__ import annotations
-# import argparse
-# from pathlib import Path
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import wfdb
-# import h5py
-# import pandas as pd
-
-# # Optional
-# try:
-#     from scipy.signal import resample as scipy_resample
-#     HAVE_SCIPY = True
-# except:
-#     HAVE_SCIPY = False
-
-# # --- import REAL preprocessing functions ---
-# from src.preprocessing.baseline_removal import remove_baseline
-# from src.preprocessing.resample import resample_ecg, pad_or_trim
-# from src.preprocessing.normalization import zscore_per_lead
-
-
-# # ============================================================
-# # PATHS
-# # ============================================================
-
-# PTB_RAW = Path("data/raw/ptbxl")
-# PTB_SIG = Path("data/processed/1d_signals/ptbxl")
-# PTB_IMG = Path("data/processed/2d_images/ptbxl")
-# PTB_META = PTB_RAW / "ptbxl_database.csv"
-
-# SAMI_RAW = Path("data/raw/sami_trop")
-# SAMI_SIG = Path("data/processed/1d_signals/sami_trop")
-# SAMI_IMG = Path("data/processed/2d_images/sami_trop")
-
-# CODE_RAW = Path("data/raw/code15")
-# CODE_SIG = Path("data/processed/1d_signals/code15")
-# CODE_IMG = Path("data/processed/2d_images/code15")
-# CODE_META = CODE_RAW / "exams.csv"
-
-# TARGET_FS = 400
-# TARGET_SEC = 10
-# TARGET_LEN = TARGET_FS * TARGET_SEC
-
-# OUT_ROOT = Path("notebooks/verification_outputs/pipeline")
-
-
-# # ============================================================
-# # Utility helpers
-# # ============================================================
-
-# def ensure_outdir(dataset: str, ecg_id: int) -> Path:
-#     out = OUT_ROOT / dataset / f"ecg_{ecg_id}"
-#     out.mkdir(parents=True, exist_ok=True)
-#     return out
-
-
-# def save_fig(out_dir: Path, name: str):
-#     out = out_dir / name
-#     plt.tight_layout()
-#     plt.savefig(out, dpi=150)
-#     plt.close()
-#     print(f"  ✔ Saved {out}")
-
-
-# def time_axis(n, fs):
-#     return np.arange(n) / fs
-
-
-# # ============================================================
-# # RAW LOADERS
-# # ============================================================
-
-# def load_raw_ptbxl(ecg_id: int, rel: str | None):
-#     if rel is None:
-#         df = pd.read_csv(PTB_META)
-#         row = df.loc[df.ecg_id == ecg_id]
-#         if row.empty:
-#             raise ValueError(f"ECG {ecg_id} not found in PTB metadata")
-#         rel = row.iloc[0]["filename_lr"]
-
-#     rec = wfdb.rdrecord(str(PTB_RAW / rel))
-#     sig = rec.p_signal.astype("float32")
-#     print(f"  [PTB-XL] raw sig = {sig.shape}, fs={rec.fs}")
-#     return sig, rec.fs
-
-
-# def load_raw_samitrop(exam_id: int):
-#     df = pd.read_csv(SAMI_RAW / "exams.csv")
-#     idx = df.index[df.exam_id == exam_id]
-#     if len(idx) == 0:
-#         raise ValueError(f"exam_id {exam_id} not found in SaMi-Trop metadata")
-
-#     with h5py.File(SAMI_RAW / "exams.hdf5", "r") as f:
-#         sig = f["tracings"][int(idx[0])]
-#     print(f"  [SaMi-Trop] raw sig = {sig.shape}, fs=400")
-#     return sig.astype("float32"), 400.0
-
-
-# def load_raw_code15(exam_id: int):
-#     df = pd.read_csv(CODE_META)
-#     row = df.loc[df.exam_id == exam_id]
-#     if row.empty:
-#         raise ValueError(f"exam_id {exam_id} not found in CODE metadata")
-
-#     trace_file = CODE_RAW / row.iloc[0]["trace_file"]
-
-#     with h5py.File(trace_file, "r") as f:
-#         ids = np.asarray(f["exam_id"])
-#         idx = np.where(ids == exam_id)[0][0]
-#         sig = f["tracings"][idx]
-
-#     print(f"  [CODE-15] raw sig = {sig.shape}, fs=400")
-#     return sig.astype("float32"), 400.0
-
-
-# # ============================================================
-# # FIXED PREPROCESSING PIPELINE
-# # ============================================================
-
-# def run_pipeline(raw: np.ndarray, fs_in: float):
-#     print("  → Baseline removal")
-#     b = remove_baseline(raw, fs=fs_in)
-
-#     print("  → Resample to 400 Hz")
-#     out = resample_ecg(b, fs_in, TARGET_FS)
-
-#     # FIX: handle tuple returns
-#     if isinstance(out, tuple):
-#         r = out[0]
-#     else:
-#         r = out
-
-#     print("  → Pad/Trim to 10s")
-#     f = pad_or_trim(r, TARGET_LEN)
-
-#     print("  → Z-score per lead")
-#     z = zscore_per_lead(f)
-
-#     return {
-#         "raw": raw,
-#         "baseline": b,
-#         "resampled": r,
-#         "fixed": f,
-#         "zscore": z
-#     }
-
-
-# # ============================================================
-# # PLOTTING
-# # ============================================================
-
-# def plot_stages(stages, fs_in, out_dir, dataset, ecg_id):
-
-#     # 01 raw
-#     t = time_axis(stages["raw"].shape[0], fs_in)
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t, stages["raw"][:, 0])
-#     plt.title(f"{dataset} {ecg_id} – Raw Lead 1")
-#     save_fig(out_dir, "01_raw_lead1.png")
-
-#     # 02 baseline
-#     t = time_axis(stages["baseline"].shape[0], fs_in)
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t, stages["baseline"][:, 0])
-#     plt.title("02 Baseline removed")
-#     save_fig(out_dir, "02_baseline_removed_lead1.png")
-
-#     # 03 resampled
-#     t = time_axis(stages["resampled"].shape[0], TARGET_FS)
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t, stages["resampled"][:, 0])
-#     plt.title("03 Resampled 400Hz")
-#     save_fig(out_dir, "03_resampled_400hz_lead1.png")
-
-#     # 04 fixed
-#     t = time_axis(stages["fixed"].shape[0], TARGET_FS)
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t, stages["fixed"][:, 0])
-#     plt.title("04 Fixed 10s")
-#     save_fig(out_dir, "04_fixed_10s_lead1.png")
-
-#     # 05 zscore
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t, stages["zscore"][:, 0])
-#     plt.title("05 Z-score final")
-#     save_fig(out_dir, "05_zscore_final_lead1.png")
-
-
-# def plot_image(img, out_dir, dataset, ecg_id):
-#     for ch in range(3):
-#         plt.figure(figsize=(12, 3))
-#         plt.imshow(img[ch], aspect="auto", cmap="gray")
-#         plt.colorbar()
-#         plt.title(f"2D Image Channel {ch+1}")
-#         save_fig(out_dir, f"0{6+ch}_image_ch{ch+1}.png")
-
-
-# def plot_pairwise(stages, img, fs_in, out_dir):
-
-#     # raw vs zscore
-#     t_raw = time_axis(stages["raw"].shape[0], fs_in)
-#     t_z = time_axis(stages["zscore"].shape[0], TARGET_FS)
-
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t_raw, stages["raw"][:, 0], alpha=0.5)
-#     plt.plot(t_z, stages["zscore"][:, 0], alpha=0.8)
-#     plt.title("09 Raw vs Z-score (lead1)")
-#     save_fig(out_dir, "09_raw_vs_zscore_lead1.png")
-
-#     if not HAVE_SCIPY:
-#         print("Scipy not installed, skipping row comparison")
-#         return
-
-#     row = 10
-#     H, W = img.shape[1:]
-#     if row >= H: row = H // 2
-
-#     # zscore vs image
-#     z = stages["zscore"][:, 0]
-#     z_r = scipy_resample(z, W)
-#     rowpix = img[0, row]
-#     t_img = np.linspace(0, TARGET_SEC, W)
-
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t_img, z_r)
-#     plt.plot(t_img, rowpix, alpha=0.6)
-#     plt.title("10 Zscore vs Image Row 10")
-#     save_fig(out_dir, "10_zscore_vs_image_row10.png")
-
-#     # raw vs image
-#     raw_10 = stages["raw"][: int(fs_in * TARGET_SEC), 0]
-#     raw_r = scipy_resample(raw_10, W)
-
-#     plt.figure(figsize=(12, 3))
-#     plt.plot(t_img, raw_r)
-#     plt.plot(t_img, rowpix, alpha=0.6)
-#     plt.title("11 Raw vs Image Row 10")
-#     save_fig(out_dir, "11_raw_vs_image_row10.png")
-
-
-# # ============================================================
-# # MAIN VALIDATION WRAPPER
-# # ============================================================
-
-# def validate_single_ecg(dataset, ecg_id, ptb_rel):
-
-#     dataset = dataset.lower()
-
-#     if dataset == "ptbxl":
-#         raw, fs = load_raw_ptbxl(ecg_id, ptb_rel)
-#         sig_path = PTB_SIG / f"{ecg_id}.npy"
-#         img_path = PTB_IMG / f"{ecg_id}_img.npy"
-
-#     elif dataset in ("sami", "samitrop", "sami_trop"):
-#         raw, fs = load_raw_samitrop(ecg_id)
-#         sig_path = SAMI_SIG / f"{ecg_id}.npy"
-#         img_path = SAMI_IMG / f"{ecg_id}_img.npy"
-#         dataset = "sami_trop"
-
-#     elif dataset == "code15":
-#         raw, fs = load_raw_code15(ecg_id)
-#         sig_path = CODE_SIG / f"{ecg_id}.npy"
-#         img_path = CODE_IMG / f"{ecg_id}_img.npy"
-
-#     else:
-#         raise ValueError("Unknown dataset")
-
-#     # run pipeline
-#     stages = run_pipeline(raw, fs)
-
-#     # load 2D image
-#     img = np.load(img_path)
-#     if img.ndim == 4:
-#         img = img[0]
-
-#     out_dir = ensure_outdir(dataset, ecg_id)
-
-#     # plots
-#     plot_stages(stages, fs, out_dir, dataset, ecg_id)
-#     plot_image(img, out_dir, dataset, ecg_id)
-#     plot_pairwise(stages, img, fs, out_dir)
-
-#     print(f"\n✔ Finished. See folder:\n{out_dir}\n")
-
-
-# # ============================================================
-# # CLI
-# # ============================================================
-
-# def main():
-#     p = argparse.ArgumentParser()
-#     p.add_argument("--dataset", required=True)
-#     p.add_argument("--id", type=int, required=True)
-#     p.add_argument("--ptbxl-raw-rel")
-#     args = p.parse_args()
-
-#     validate_single_ecg(args.dataset, args.id, args.ptbxl_raw_rel)
-
-
-# if __name__ == "__main__":
-#     main()

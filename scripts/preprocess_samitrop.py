@@ -8,199 +8,164 @@ Dataset reference (Zenodo):
 Raw files (expected layout):
     data/raw/sami_trop/
         exams.csv        # metadata table with column 'exam_id'
-        exams.hdf5       # HDF5 file with dataset 'tracings'
+        exams.hdf5       # HDF5 file with dataset 'tracings' (unzip exams.zip if needed)
 
 HDF5 layout:
-    tracings: shape (N, 4096, 12)
-        - N = number of exams (1631 in the public subset)
-        - 4096 samples at 400 Hz (≈10.24 s; some originally 7 s, zero-padded)
-        - 12 leads in order: [DI, DII, DIII, AVR, AVL, AVF, V1..V6]
+    tracings: shape (1631, 4096, 12)
+        - N = 1631 exams (public subset)
+        - 4096 samples at 400 Hz (≈10.24 s; some originally 7 s, symmetrically zero-padded)
+        - 12 leads in order: [DI, DII, DIII, AVR, AVL, AVF, V1, V2, V3, V4, V5, V6]
 
-Standardized preprocessing pipeline (aligned with PTB-XL):
+Dual preprocessing pipeline (aligned with Kim et al. 2025 and Van Santvliet et al. 2025):
     1. Load signal (4096, 12) from HDF5.
-    2. Baseline removal using moving-average filter.
-    3. Resample to TARGET_FS (default 400 Hz).
-    4. Pad/trim to TARGET_DURATION_SEC (default 10 s → 4000 samples).
-    5. Per-lead z-score normalization.
-    6. Save as:
-        data/processed/1d_signals/sami_trop/<exam_id>.npy
+    2. Remove symmetric zero-padding (for 7-second recordings).
+    3. Gentle baseline removal using moving-average filter (200 ms window).
+    4. Resample:
+         • To 500 Hz → for 2D image generation (Kim et al.)
+         • To 100 Hz → for 1D foundation model (Van Santvliet et al.)
+    5. Pad/trim to fixed 10 seconds:
+         • 5000 samples at 500 Hz
+         • 1000 samples at 100 Hz
+    6. Per-lead z-score normalization (only for 500 Hz image path).
+    7. Save as:
+         data/processed/1d_signals_500hz/sami_trop/<exam_id>.npy   # z-scored, for images
+         data/processed/1d_signals_100hz/sami_trop/<exam_id>.npy   # raw amplitudes, for FM
 
-This script is intended to be run once to generate the processed 1D signals
-for SaMi-Trop, which are then used by:
-    - scripts/build_images.py        → 2D RA/LA/LL contour images
-    - src/dataloaders/fm_signal_dataset.py
-    - src/dataloaders/image_dataset.py
+This script generates preprocessed signals used by:
+    - scripts/build_images.py                  → 2D RA/LA/LL contour images (from 500 Hz)
+    - Future FM pretraining / fine-tuning      → (from 100 Hz)
+    - Hybrid alignment experiments
 """
 
 from pathlib import Path
 import time
-
+import warnings
 import h5py
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from src.preprocessing.baseline_removal import remove_baseline
 from src.preprocessing.resample import resample_ecg, pad_or_trim
 from src.preprocessing.normalization import zscore_per_lead
+from src.preprocessing.soft_labels import chagas_label_sami_trop
 
 
 # -------------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------------
-
 SAMI_ROOT = Path("data/raw/sami_trop")
-OUTPUT_DIR = Path("data/processed/1d_signals/sami_trop")
+OUTPUT_DIR_500 = Path("data/processed/1d_signals_500hz/sami_trop")
+OUTPUT_DIR_100 = Path("data/processed/1d_signals_100hz/sami_trop")
+METADATA_OUTPUT = Path("data/processed/metadata/sami_trop_processed.csv")
 
-# SaMi-Trop tracings are already at 400 Hz, but we keep this configurable
-TARGET_FS = 400.0
-TARGET_DURATION_SEC = 10.0  # to match PTB-XL (10 s) and CODE-15%
+ORIGINAL_FS = 400.0
+TARGET_FS_IMAGE = 500.0   # Kim et al. 2025 – for 2D contour images
+TARGET_FS_FM = 100.0      # Van Santvliet et al. 2025 – for 1D FM
+TARGET_DURATION_SEC = 10.0
 
+TARGET_SAMPLES_IMAGE = int(TARGET_DURATION_SEC * TARGET_FS_IMAGE)  # 5000
+TARGET_SAMPLES_FM = int(TARGET_DURATION_SEC * TARGET_FS_FM)        # 1000
 
-# -------------------------------------------------------------------------
-# Preprocessing for a single SaMi-Trop exam
-# -------------------------------------------------------------------------
-
-
-def preprocess_single_exam(
-    signal: np.ndarray,
-    fs_in: float = 400.0,
-    fs_target: float = TARGET_FS,
-    duration_sec: float = TARGET_DURATION_SEC,
-    baseline_window_sec: float = 0.8,
-) -> np.ndarray:
-    """
-    Preprocess a single SaMi-Trop ECG recording.
-
-    Steps:
-        1) Baseline removal via moving-average filter (paper 2 style).
-        2) Resample to fs_target using polyphase resampling.
-        3) Pad or trim to fixed duration.
-        4) Per-lead z-score normalization.
-
-    Parameters
-    ----------
-    signal : np.ndarray
-        Raw ECG signal array of shape (T, 12).
-    fs_in : float
-        Original sampling frequency (SaMi-Trop uses 400 Hz).
-    fs_target : float
-        Target sampling frequency (default 400 Hz).
-    duration_sec : float
-        Target fixed duration (default 10 s).
-    baseline_window_sec : float
-        Window (in seconds) for moving-average baseline estimation.
-
-    Returns
-    -------
-    np.ndarray
-        Preprocessed ECG of shape (T_fixed, 12), dtype float32.
-    """
-    if signal.ndim != 2 or signal.shape[1] != 12:
-        raise ValueError(
-            f"Expected signal of shape (T, 12), got {signal.shape}"
-        )
-
-    # Ensure float32 for numerical stability and storage efficiency
-    signal = signal.astype(np.float32)
-
-    # 1) Baseline removal with moving-average filter
-    signal = remove_baseline(
-        signal,
-        fs=fs_in,
-        method="moving_average",
-        window_seconds=baseline_window_sec,
-    )
-
-    # 2) Resample (if fs_in != fs_target, otherwise this is a no-op)
-    signal, fs_rs = resample_ecg(signal, fs_in=fs_in, fs_out=fs_target)
-
-    # 3) Pad or trim to fixed length
-    target_len = int(round(duration_sec * fs_rs))
-    signal = pad_or_trim(signal, target_length=target_len)  # (T_fixed, 12)
-
-    # 4) Per-lead z-score normalization
-    signal = zscore_per_lead(signal)
-
-    return signal.astype(np.float32)
+# Gentle baseline removal suitable for SaMi-Trop
+BASELINE_METHOD = "moving_average"
+BASELINE_KWARGS = {"window_seconds": 0.2}  # 200 ms window
 
 
-# -------------------------------------------------------------------------
-# Main script
-# -------------------------------------------------------------------------
+def remove_zero_padding(signal: np.ndarray, threshold: float = 1e-6) -> np.ndarray:
+    """Remove symmetric zero-padding from SaMi-Trop signals."""
+    non_zero = np.any(np.abs(signal) > threshold, axis=1)
+    start = np.argmax(non_zero)
+    end = len(non_zero) - np.argmax(non_zero[::-1])
+    return signal[start:end]
 
 
-def main():
-    # 1) Load metadata CSV
-    csv_path = SAMI_ROOT / "exams.csv"
-    if not csv_path.exists():
-        raise FileNotFoundError(f"Could not find SaMi-Trop CSV at: {csv_path}")
+def main() -> None:
+    start_time = time.time()
+    processed_records = []
+    failed_records = []
 
-    print(f"📄 Loading metadata from: {csv_path}")
-    df = pd.read_csv(csv_path)
+    # Ensure all output directories exist
+    OUTPUT_DIR_500.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR_100.mkdir(parents=True, exist_ok=True)
+    METADATA_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
-    # Basic sanity check
-    if "exam_id" not in df.columns:
-        raise ValueError("Expected column 'exam_id' in exams.csv")
+    # Load metadata and HDF5 file
+    exams_df = pd.read_csv(SAMI_ROOT / "exams.csv")
+    with h5py.File(SAMI_ROOT / "exams.hdf5", "r") as h5_file:
+        tracings = h5_file["tracings"]
 
-    # 2) Open HDF5 file with tracings
-    h5_path = SAMI_ROOT / "exams.hdf5"
-    if not h5_path.exists():
-        raise FileNotFoundError(f"Could not find SaMi-Trop HDF5 at: {h5_path}")
+        for idx, row in tqdm(exams_df.iterrows(), total=len(exams_df), desc="Processing SaMi-Trop"):
+            exam_id = int(row["exam_id"])
+            try:
+                raw_signal = tracings[idx].astype(np.float32)  # (4096, 12)
 
-    print(f"📂 Opening HDF5 tracings from: {h5_path}")
-    h5_file = h5py.File(h5_path, "r")
+                # 1. Remove zero-padding
+                depadded = remove_zero_padding(raw_signal)
 
-    if "tracings" not in h5_file:
-        raise KeyError("HDF5 file does not contain dataset 'tracings'")
+                # 2. Baseline removal
+                filtered = remove_baseline(
+                    depadded,
+                    fs=ORIGINAL_FS,
+                    method=BASELINE_METHOD,
+                    **BASELINE_KWARGS
+                )
 
-    tracings = h5_file["tracings"]  # shape (N, 4096, 12)
-    num_records_h5 = tracings.shape[0]
-    num_records_csv = len(df)
+                # 3. Image path – 500 Hz + z-score
+                signal_500, _ = resample_ecg(filtered, ORIGINAL_FS, TARGET_FS_IMAGE)
+                signal_500 = pad_or_trim(signal_500, TARGET_SAMPLES_IMAGE)
+                normalized_500 = zscore_per_lead(signal_500)
 
-    print(f"🔢 HDF5 tracings shape: {tracings.shape}")
-    print(f"🔢 CSV rows: {num_records_csv}")
+                # 4. FM path – 100 Hz, no z-score
+                signal_100, _ = resample_ecg(filtered, ORIGINAL_FS, TARGET_FS_FM)
+                signal_100 = pad_or_trim(signal_100, TARGET_SAMPLES_FM)
 
-    if num_records_h5 != num_records_csv:
-        print(
-            f"⚠️ Warning: HDF5 has {num_records_h5} records but CSV has {num_records_csv} rows."
-            " Assuming 1:1 alignment by index."
-        )
+                # Save
+                np.save(OUTPUT_DIR_500 / f"{exam_id}.npy", normalized_500)
+                np.save(OUTPUT_DIR_100 / f"{exam_id}.npy", signal_100)
 
-    # 3) Ensure output directory exists
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"💾 Saving preprocessed signals to: {OUTPUT_DIR}")
+                # Record metadata
+                processed_records.append({
+                    "exam_id": exam_id,
+                    "path_500hz": str(OUTPUT_DIR_500 / f"{exam_id}.npy"),
+                    "path_100hz": str(OUTPUT_DIR_100 / f"{exam_id}.npy"),
+                    "original_length": raw_signal.shape[0],
+                    "depadded_length": depadded.shape[0],
+                    "label": chagas_label_sami_trop()
+                })
 
-    # 4) Loop over all exams
-    for idx, row in df.iterrows():
-        exam_id = int(row["exam_id"])
-        # tracings[idx] is (4096, 12)
-        raw_signal = tracings[idx, :, :]  # (T, 12)
+            except Exception as e:
+                warnings.warn(f"Failed on exam_id {exam_id} (index {idx}): {e}")
+                failed_records.append({
+                    "exam_id": exam_id,
+                    "index": idx,
+                    "error": str(e)
+                })
 
-        if idx % 100 == 0:
-            print(
-                f"[{idx+1}/{num_records_csv}] Processing exam_id={exam_id} "
-                f"(raw shape: {raw_signal.shape})"
-            )
+    # Save metadata CSV
+    if processed_records:
+        metadata_df = pd.DataFrame(processed_records)
+        metadata_df.to_csv(METADATA_OUTPUT, index=False)
+        print(f"💾 Metadata saved to {METADATA_OUTPUT}")
 
-        try:
-            processed = preprocess_single_exam(
-                signal=raw_signal,
-                fs_in=400.0,
-                fs_target=TARGET_FS,
-                duration_sec=TARGET_DURATION_SEC,
-                baseline_window_sec=0.8,
-            )
-        except Exception as e:
-            print(f"❌ Failed to process exam_id={exam_id}: {e}")
-            continue
+    # Summary
+    elapsed_time = time.time() - start_time
+    print("\n" + "=" * 60)
+    print("✅ SaMi-Trop preprocessing complete!")
+    print(f"   Processed : {len(processed_records)} exams")
+    print(f"   Failed    : {len(failed_records)} exams")
+    print(f"   Total time: {elapsed_time:.1f} s ({elapsed_time / 60:.1f} min)")
+    print(f"   Saved to  :")
+    print(f"       Images (500 Hz) → {OUTPUT_DIR_500}")
+    print(f"       FM     (100 Hz) → {OUTPUT_DIR_100}")
+    print("=" * 60)
 
-        out_path = OUTPUT_DIR / f"{exam_id}.npy"
-        np.save(out_path, processed)
-
-    # 5) Close HDF5 file
-    h5_file.close()
-
-    print("✅ SaMi-Trop preprocessing complete.")
+    if failed_records:
+        print("\n❌ First 10 failed records:")
+        for fail in failed_records[:10]:
+            print(f"   exam_id {fail['exam_id']} (idx {fail['index']}): {fail['error']}")
+        if len(failed_records) > 10:
+            print(f"   ... and {len(failed_records) - 10} more")
 
 
 if __name__ == "__main__":

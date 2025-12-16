@@ -17,9 +17,11 @@ resampling and normalization.
 
 
 from typing import Literal, Optional
+import warnings
 
 import numpy as np
 from scipy.signal import butter, filtfilt
+from scipy.ndimage import convolve1d
 
 
 def highpass_filter(
@@ -49,6 +51,12 @@ def highpass_filter(
     """
     if signal.ndim != 2:
         raise ValueError(f"signal must be 2D (T, leads), got shape {signal.shape}")
+    
+    if fs <= 0:
+        raise ValueError(f"Sampling frequency fs must be positive, got {fs}")
+    
+    if cutoff_hz <= 0 or cutoff_hz >= fs/2:
+        raise ValueError(f"cutoff_hz must be between 0 and Nyquist ({fs/2}), got {cutoff_hz}")
 
     nyq = 0.5 * fs
     normalized_cutoff = cutoff_hz / nyq
@@ -57,7 +65,7 @@ def highpass_filter(
     b, a = butter(order, normalized_cutoff, btype="high", analog=False)
     
     # Apply filtfilt for zero-phase filtering
-    return filtfilt(b, a, signal, axis=0)
+    return filtfilt(b, a, signal, axis=0).astype(np.float32)
 
 
 def bandpass_filter(
@@ -90,6 +98,18 @@ def bandpass_filter(
     """
     if signal.ndim != 2:
         raise ValueError(f"signal must be 2D (T, leads), got shape {signal.shape}")
+    
+    if fs <= 0:
+        raise ValueError(f"Sampling frequency fs must be positive, got {fs}")
+    
+    if low_cut_hz <= 0:
+        raise ValueError(f"low_cut_hz must be positive, got {low_cut_hz}")
+    
+    if high_cut_hz <= low_cut_hz:
+        raise ValueError(f"high_cut_hz must be greater than low_cut_hz, got {high_cut_hz} <= {low_cut_hz}")
+    
+    if high_cut_hz >= fs/2:
+        warnings.warn(f"high_cut_hz ({high_cut_hz}) is at or above Nyquist ({fs/2}), may cause instability")
 
     nyq = 0.5 * fs
     low = low_cut_hz / nyq
@@ -102,7 +122,7 @@ def bandpass_filter(
         )
 
     b, a = butter(order, [low, high], btype="band", analog=False)
-    return filtfilt(b, a, signal, axis=0)
+    return filtfilt(b, a, signal, axis=0).astype(np.float32)
 
 
 def moving_average_baseline(
@@ -129,8 +149,21 @@ def moving_average_baseline(
     """
     if signal.ndim != 2:
         raise ValueError(f"signal must be 2D (T, leads), got shape {signal.shape}")
+    
+    if fs <= 0:
+        raise ValueError(f"Sampling frequency fs must be positive, got {fs}")
+    
+    if window_seconds <= 0:
+        raise ValueError(f"window_seconds must be positive, got {window_seconds}")
 
     window_samples = int(max(1, round(window_seconds * fs)))
+    
+    if window_samples >= signal.shape[0]:
+        warnings.warn(
+            f"Window size ({window_samples}) is larger than signal length "
+            f"({signal.shape[0]}), results may be unreliable"
+        )
+        window_samples = min(window_samples, signal.shape[0] // 2)
     
     # Ensure window is odd for symmetric convolution
     if window_samples % 2 == 0:
@@ -139,14 +172,13 @@ def moving_average_baseline(
     # Create moving average kernel
     kernel = np.ones(window_samples) / window_samples
     
-    # Apply convolution to each lead separately with mode='same'
-    # Use reflect padding to handle edges
+    # Apply convolution to each lead separately with reflect padding
     baseline = np.array([
-        np.convolve(signal[:, lead], kernel, mode='same')
+        convolve1d(signal[:, lead], kernel, mode='reflect')
         for lead in range(signal.shape[1])
     ]).T
     
-    return signal - baseline
+    return (signal - baseline).astype(np.float32)
 
 
 def remove_baseline(
@@ -190,8 +222,10 @@ def remove_baseline(
         low_cut_hz = kwargs.get("low_cut_hz", 0.5)
         high_cut_hz = kwargs.get("high_cut_hz", 45.0)
         order = kwargs.get("order", 4)
-        return bandpass_filter(signal, fs=fs, low_cut_hz=low_cut_hz, 
-                              high_cut_hz=high_cut_hz, order=order)
+        return bandpass_filter(
+            signal, fs=fs, low_cut_hz=low_cut_hz, 
+            high_cut_hz=high_cut_hz, order=order
+        )
     
     else:
         raise ValueError(f"Unknown baseline removal method: {method}")
