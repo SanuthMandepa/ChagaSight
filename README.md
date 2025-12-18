@@ -1,326 +1,264 @@
-🧬 **ChagaSight — A Vision Transformer–Based ECG Image Pipeline for Chagas Disease Detection**
+📌 1. Project Overview
 
-        A Final-Year Research Project using Physiologically Structured 2D ECG Images and Optional 1D ECG Foundation Models
+ChagaSight is a modular deep-learning research framework designed to investigate whether Vision Transformers, when trained on physiologically meaningful ECG image representations, can effectively detect Chagas disease across multiple ECG datasets.
 
-        ChagaSight is a modular deep-learning framework designed to detect Chagas disease from 12-lead ECGs.
-        This project focuses primarily on transforming ECG signals into physiologically structured 2D images and training a Vision Transformer (ViT) classifier on these images.
+The project places primary emphasis on:
 
-        In addition, ChagaSight includes an optional extension exploring a 1D ECG Foundation Model (FM) based on masked self-supervised pretraining (ST-MEM), and an optional hybrid alignment model that links 1D signal embeddings with 2D image embeddings.
+Transforming raw 12-lead ECG signals into structured 2D images and preparing a Vision Transformer classifier for disease detection.
 
-        The approach is inspired by two modern research pipelines:
+In addition, the architecture is designed to support future extensions, including 1D ECG foundation models and hybrid alignment strategies. These extensions are explicitly marked as optional and non-essential for the core dissertation contribution.
 
-        Physiologically Structured 2D ECG Image Embedding (2025)
+📚 Research Inspiration
 
-        Vision Transformer Foundation Model for ECGs (2025)
+The design of ChagaSight is informed by two contemporary ECG-AI research directions:
 
-# 📌 1. Project Overview
+Physiologically Structured 2D ECG Image Embedding (2025)
+— converting ECG signals into spatially structured image representations.
 
-        ChagaSight provides an end-to-end workflow for multi-dataset ECG processing, image generation, model training, and evaluation.
+Vision Transformer–Based ECG Foundation Models (2025)
+— applying transformer architectures to ECG signals using self-supervised learning.
 
-        ✔ Multi-Dataset ECG Preprocessing
-        PTB-XL, CODE-15%, and SaMi-Trop are unified by cleaning, resampling, trimming, and normalizing all signals.
+These works inspire architectural choices, but the implementation focuses on a practical, verifiable, and reproducible pipeline suitable for academic evaluation.
 
-        ✔ 2D ECG Image Representation (PRIMARY METHOD)
-        ECGs are converted into structured 3-channel images using RA/LA/LL contour mapping, producing ViT-ready images (3 × 24 × 2048).
+📊 2. Supported Datasets
 
-        ✔ Vision Transformer (ViT) Image Classifier (MAIN MODEL)
-        The primary dissertation model: a ViT trained on 2D ECG images to classify Chagas disease.
+ChagaSight currently supports three widely used 12-lead ECG datasets in modern ECG research.
 
-        ✔ Optional: ECG Foundation Model (1D ViT-FM)
-        A transformer encoder trained using ST-MEM masked reconstruction for advanced representation learning.
+Dataset Description Sample Rate Chagas Label
+PTB-XL European clinical ECG dataset (~21k recordings) 100 / 500 Hz All negative (0)
+CODE-15% Brazilian population ECG cohort 400 Hz Soft labels: 0.2 / 0.8
+SaMi-Trop Serology-confirmed Chagas cohort 400 Hz All positive (1)
+✔ Label Policy
 
-        ✔ Optional: Hybrid FM + ViT Alignment
-        A REPA-style cosine alignment loss linking 1D FM embeddings with 2D ViT image embeddings for robustness.
-        This structure enables a scalable, research-grade pipeline suitable for academic evaluation and future clinical studies.
+The following labeling strategy is adopted in line with state-of-the-art ECG-AI research:
 
----
+Dataset Confidence Label Assignment
+PTB-XL Very strong negative 0
+SaMi-Trop Very strong positive 1
+CODE-15% Weak / self-reported Soft labels (0.2 / 0.8)
+📁 3. Project Folder Structure
 
-# 📊 2. Supported Datasets
-
-ChagaSight supports three widely used 12-lead ECG datasets in modern ECG AI research:
-
-| Dataset       | Description                          | Sample Rate | Chagas Label               |
-| ------------- | ------------------------------------ | ----------- | -------------------------- |
-| **PTB-XL**    | 21k European ECGs                    | 100/500 Hz  | All **negative (0)**       |
-| **CODE-15%**  | 345k Brazilian ECGs                  | 400 Hz      | **Soft labels: 0.2 / 0.8** |
-| **SaMi-Trop** | 1631 serology-confirmed Chagas cases | 400 Hz      | All **positive (1)**       |
-
-### ✔ Label Policy
-
-Consistent with state-of-the-art research:
-
-| Dataset   | Confidence           | Assigned Label |
-| --------- | -------------------- | -------------- |
-| PTB-XL    | Very strong negative | **0**          |
-| SaMi-Trop | Very strong positive | **1**          |
-| CODE-15%  | Weak (self-reported) | **0.2 / 0.8**  |
-
----
-
-# 📁 3. Folder Structure (2025 Architecture)
+The structure below represents the logical system architecture.
+Large datasets and virtual-environment internals are intentionally excluded.
 
 ChagaSight/
+├── .git/
+├── .venv/ # Python virtual environment (ignored in version control)
 │
 ├── data/
 │ ├── raw/ # Original unmodified ECG datasets
-│ │ ├── ptbxl/ # PTB-XL (100 Hz / 500 Hz WFDB files)
-│ │ ├── code15/ # CODE-15% Brazil dataset (raw ECGs)
-│ │ └── sami_trop/ # SaMi-Trop serology-confirmed Chagas dataset
+│ │ ├── ptbxl/
+│ │ ├── code15/
+│ │ └── sami_trop/
 │ │
 │ ├── processed/
-│ │ ├── 1d_signals/ # Cleaned, resampled ECG (1D numpy arrays)
-│ │ │ # → Baseline-removed, resampled, normalized
-│ │ └── 2d_images/ # 2D structured ECG images (3 × 24 × 2048)
-│ │ # → Final input format for Vision Transformer
+│ │ ├── 1d_signals_100hz/ # FM-compatible 1D ECG signals
+│ │ ├── 1d_signals_500hz/ # High-resolution signals for image embedding
+│ │ ├── 2d_images/ # Structured ECG image representations
+│ │ └── metadata/ # Processed dataset metadata (CSV)
 │ │
-│ └── splits/ # Patient-level train/val/test splits (JSON)
+│ └── splits/ # Train / validation / test splits
 │
-├── src/ # All source code
-│ ├── preprocessing/
-│ │ ├── baseline_removal.py # High-pass / band-pass filtering
-│ │ ├── resample.py # Resampling to 400 Hz + padding & trimming
-│ │ ├── normalization.py # Per-lead z-score normalization utilities
-│ │ ├── image_embedding.py # ECG → 2D image conversion (RA/LA/LL channels)
-│ │ └── soft_labels.py # Soft-label generation for CODE-15% dataset
-│ │
-│ ├── foundation_model/ # OPTIONAL — For ECG Foundation Model (1D FM)
-│ │ ├── vit_1d_encoder.py # 1D ViT backbone for ECG signals
-│ │ ├── st_mem_pretraining.py # Masked self-supervised training (ST-MEM)
-│ │ ├── aol_mixing.py # Aggregation of Layers (AoL) module
-│ │ └── fm_feature_extractor.py # Extract FM embeddings for hybrid models
-│ │
-│ ├── image_model/ # MAIN MODEL — ViT image classifier
-│ │ ├── vit_image_encoder.py # Vision Transformer backbone for ECG images
-│ │ ├── projection_head.py # Linear head for classification
-│ │ └── alignment_loss.py # Loss for hybrid FM + ViT alignment
+├── notebooks/ # Exploratory analysis and development notebooks
+│
+├── scripts/ # Dataset-level preprocessing scripts
+│ ├── preprocess_ptbxl.py
+│ ├── preprocess_code15.py
+│ ├── preprocess_code15_corrected.py
+│ ├── preprocess_samitrop.py
+│ ├── preprocess_samitrop_updated.py
+│ ├── build_images.py
+│ └── validate_single_ecg.py
+│
+├── src/
+│ ├── preprocessing/ # Core ECG signal processing modules
+│ │ ├── baseline_removal.py
+│ │ ├── resample.py
+│ │ ├── normalization.py
+│ │ ├── image_embedding.py
+│ │ └── soft_labels.py
 │ │
 │ ├── dataloaders/
-│ │ ├── ptbxl_loader.py # PTB-XL dataloader (1D + 2D modes)
-│ │ ├── code15_loader.py # CODE-15% loader with soft labels
-│ │ ├── sami_loader.py # SaMi-Trop Chagas dataset loader
-│ │ ├── fm_signal_dataset.py # Dataset for training 1D Foundation Model (FM)
-│ │ └── image_dataset.py # Dataloader for ECG image-based ViT training
+│ │ └── ptbxl_loader.py
 │ │
-│ ├── training/
-│ │ ├── train_image_model.py # MAIN TRAINER — Vision Transformer training
-│ │ ├── train_fm.py # OPTIONAL — Training the ECG Foundation Model
-│ │ ├── train_hybrid.py # OPTIONAL — FM + ViT hybrid alignment training
-│ │ ├── augmentations_1d.py # 1D ECG augmentations for FM
-│ │ └── augmentations_2d.py # 2D ECG image augmentations for ViT
-│ │
-│ └── evaluation/
-│ ├── metrics.py # AUROC, AUPRC, F1, calibration metrics
-│ ├── explainability.py # Grad-CAM for images + FM attention maps
-│ └── challenge_metric.py # Top-K TPR scoring utilities
+│ ├── image_model/ # Image-based model components (planned)
+│ ├── foundation_model/ # Optional FM architecture (design stage)
+│ ├── training/ # Training orchestration (planned)
+│ └── evaluation/ # Evaluation utilities (planned)
 │
-├── scripts/ # Executable scripts for full pipeline
-│ ├── preprocess_ptbxl.py # Preprocess PTB-XL (Stage 1: 1D)
-│ ├── preprocess_code15.py # Preprocess CODE-15% (Stage 1)
-│ ├── preprocess_samitrop.py # Preprocess SaMi-Trop (Stage 1)
-│ ├── build_images.py # Stage 2: ECG → 2D image creation
-│ ├── create_splits.py # Build train/val/test splits
-│ ├── train_vit_image.sh # Shell script: Train ViT model
-│ ├── train_fm.sh # Shell script: Train FM model (optional)
-│ └── train_hybrid.sh # Shell script: Hybrid alignment training
+├── tests/ # Scientific verification & validation suite
+│ ├── test_baseline.py
+│ ├── test_resample.py
+│ ├── test_preprocessing_pipeline.py
+│ ├── test_samitrop_preprocessing.py
+│ ├── test_code15_raw.py
+│ ├── analyze_samitrop_signals.py
+│ ├── check_raw_data.py
+│ ├── validate_single_ecg.py
+│ └── verification_outputs/
 │
-├── notebooks/ # Development + documentation notebooks
-│ ├── 01_preprocessing_1d.ipynb # Preprocess ECG into 1D format
-│ ├── 02_image_embedding.ipynb # Convert 1D → 2D images
-│ ├── 03_fm_pretraining.ipynb # OPTIONAL — FM masked training
-│ ├── 04_cross_validation.ipynb # Model validation experiments
-│ ├── 05_hybrid_alignment_training.ipynb
-│ └── 06_evaluation.ipynb # Visualisations + performance metrics
-│
-├── docs/
-│ ├── methodology/ # Dissertation-ready documentation
-│ │ ├── fm_architecture.md # 1D FM architecture explanation
-│ │ ├── image_embedding_diagram.png # 2D ECG image pipeline visualisation
-│ │ └── augmentation_strategy.md # Full augmentation design
-│ │
-│ ├── figures/ # Figures for thesis/report
-│ ├── reports/ # Auto-generated experiment summaries
-│ └── diagrams/ # Flowcharts, system diagrams, etc.
-│
-├── experiments/ # Saved experimental runs
-│ ├── image_baseline/ # ViT image model results
-│ ├── fm_pretraining/ # FM pretraining logs
-│ └── hybrid_alignment/ # Hybrid model experiments
-│
-├── results/ # Outputs (excluded from Git)
-│
-├── requirements.txt # Python dependencies
-└── README.md # Project documentation
+├── requirements.txt
+├── .gitignore
+└── README.md
 
----
+🔧 4. ECG Preprocessing Pipeline
 
-# 🔧 4. Preprocessing Pipeline
+ChagaSight adopts a two-stage preprocessing strategy, fully implemented and verified through scripts and tests.
 
-ChagaSight adopts a **two-stage preprocessing strategy** inspired by recent ECG research.
+Stage 1 — 1D ECG Signal Preprocessing (Implemented)
 
-## **Stage 1 — 1D Signal Preprocessing**
+The following steps are applied in a dataset-aware manner:
 
-- Baseline drift removal
-- Resampling to a unified frequency
-- Padding/trimming to fixed duration (10s)
-- Per-lead z-score normalization
-- Saving as .npy 1D arrays
+Baseline drift removal
+
+Resampling to a unified frequency
+
+Padding or trimming to a fixed duration (10 seconds)
+
+Per-lead z-score normalization
+
+Saving processed signals as .npy arrays
+
+Dataset-specific baseline handling:
+
+PTB-XL → band-pass filtering (0.5–45 Hz)
+
+SaMi-Trop → moving-average baseline removal
+
+CODE-15% → no baseline removal (pre-filtered data)
+
+Output directories:
+
+data/processed/1d_signals_500hz/
+data/processed/1d_signals_100hz/
+
+Stage 2 — ECG → Structured 2D Image Conversion (Implemented)
+
+Each ECG is converted into a physiologically structured image using limb-lead reference mapping:
+
+Construction of three channels representing RA, LA, and LL contours
+
+Subtraction of augmented limb-lead reference
+
+Amplitude clipping to [-3, 3]
+
+Linear scaling to [0, 255]
+
+Resizing to 3 × 24 × 2048
 
 Output directory:
-data/processed/1d_signals/
 
-## **Stage 2 — ECG → Structured 2D Image Conversion**
-
-Using physiologically meaningful RA/LA/LL contour mapping:
-
-- Construct 3 channels representing RA, LA, LL contours
-- Subtract reference lead (augmented limb lead)
-- Clip amplitudes to [-3, 3]
-- Scale to pixel range [0–255]
-- Resize to 3 × 24 × 2048
-
-Output directory:
 data/processed/2d_images/
 
-This format is optimized for Vision Transformers.
+This representation is optimised for Vision Transformer input.
 
----
+🧠 5. Model Scope
+A. Vision Transformer (Primary Dissertation Model)
 
-# 🧠 5. Model Components
+Input: structured 2D ECG images
 
-## **A. Vision Transformer (MAIN MODEL)**
+Architecture: Vision Transformer adapted for rectangular biomedical images
 
-- Input: structured ECG images
-- Patch embeddings adapted for rectangular biomedical images
-- Output: disease probability + latent embeddings
+Output: probability of Chagas disease
 
-## This is the primary deliverable of the final-year project.
+Status:
+Model training and evaluation constitute the next planned project phase.
 
-## **B. ECG Foundation Model (OPTIONAL EXTENSION)**
+B. ECG Foundation Model (Optional Research Extension)
 
-A 1D Vision Transformer (12 layers) trained using:
+An optional architectural extension is designed for a 1D ECG Foundation Model, inspired by masked self-supervised learning (e.g. ST-MEM).
 
-- ST-MEM masked self-supervised learning
-- Patch size = 50
-- Aggregation of Layers (AoL)
+Status:
+Design exploration only.
+Not required for core dissertation results.
 
-Provides robust signal-level ECG embeddings, especially useful in low-label or multi-dataset setups.
+C. Hybrid FM + ViT Alignment (Future Research Direction)
 
----
+A proposed hybrid model aims to align 1D FM embeddings with 2D ViT embeddings using a cosine-similarity–based objective.
 
-## **C. Hybrid FM + ViT Alignment Model (Optional Advanced Model)**
+Status:
+Conceptual design only.
 
-A REPA-inspired loss encourages ViT and FM feature alignment:
+🧪 6. Training & Validation Workflow
+Implemented
 
-L_total = L_classification + λ · cosine_similarity(FM_features, ViT_features)
+1D ECG preprocessing (scripts/preprocess\_\*.py)
 
-## Used for robustness and dataset-shift resistance.
+ECG → 2D image generation (scripts/build_images.py)
 
-# 🧪 6. Training Workflow
+Pipeline validation (tests/validate_single_ecg.py)
 
-### **1. Preprocess 1D ECG Signals**
+Validation includes:
 
-notebooks/01_preprocessing_1d.ipynb
+Signal integrity checks
 
-### **2. Convert 1D Signals to 2D Images**
+Frequency-domain inspection
 
-notebooks/02_image_embedding.ipynb
+Lead-wise consistency analysis
 
-### **3. Train Vision Transformer (Main Model)**
+1D ↔ 2D correspondence
 
-python src/training/train_image_model.py
+Planned
 
-### **4. Evaluate ViT Model**
+Vision Transformer training
 
-    AUROC
-    AUPRC
-    F1
-    Calibration
-    Grad-CAM
+Model evaluation and explainability
 
-### **5. (Optional) Train ECG Foundation Model**
+📈 7. Evaluation Metrics (Planned)
 
-python src/training/train_fm.py
+AUROC
 
-### **6. (Optional) Train Hybrid Model**
+AUPRC
 
-python src/training/train_hybrid.py
+Accuracy
 
----
+F1-score
 
-# 📈 7. Evaluation Metrics
+Calibration curves
 
-    AUROC
-    AUPRC
-    Accuracy & F1
-    Top-K screening sensitivity
-    Calibration curves
-    Confusion matrices
-    Grad-CAM (image & signal attention)
+Confusion matrices
 
----
+Explainability techniques (e.g. Grad-CAM) are planned for future evaluation.
 
-# 🔍 8. Key Contributions of This Pipeline
+🔍 8. Key Contributions
+✔ Implemented
 
-**✔ Physiologically Structured 2D ECG Image Pipeline**
-A high-fidelity image representation built on limb-lead reference mapping.
+Physiologically structured 2D ECG image pipeline
 
-**✔ Vision Transformer Baseline Model (Main Output)**
-The primary focus of the dissertation.
+Unified multi-dataset preprocessing
 
-**✔ Optional 1D Foundation Model (Advanced)**
-Implements contemporary masked ECG self-supervision.
+Comprehensive verification and validation suite
 
-**✔ Optional Hybrid Feature Alignment**
-Bridges image-based and signal-based features.
+◻ Planned
 
-**✔ Unified Multi-Dataset Workflow**
-A single preprocessing and training pipeline across PTB-XL, CODE-15%, SaMi-Trop.
+Vision Transformer classifier training
 
----
+Performance evaluation and explainability
 
-# 🚀 9. Roadmap
+Optional foundation-model experiments
 
-[ ] Phase 1 — 1D ECG Preprocessing (Required)
+🚀 9. Roadmap
 
-    Clean and normalize all datasets
-    Resample, trim, pad
-    Save as .npy 1D signals
+1D ECG preprocessing
 
-[ ] Phase 2 — Structured 2D Image Generation (Required)
+Structured 2D image generation
 
-    Produce 3-channel structured images
-    Validate RA/LA/LL mapping
-    Save to processed/2d_images/
+Validation & verification
 
-[ ] Phase 3 — Train Vision Transformer (Required)
+Vision Transformer training
 
-    Train ViT classifier
-    Evaluate AUROC / AUPRC / F1
+Model evaluation & explainability
 
-[ ] Phase 4 — ECG Foundation Model (Optional)
+Dissertation writing & submission
 
-    ST-MEM masked pretraining
-    Extract FM embeddings
+📦 Reproducibility
 
-[ ] Phase 5 — Hybrid Alignment (Optional)
+All dependencies are defined in:
 
-    Train joint FM + ViT model
-    Apply alignment loss
+requirements.txt
 
-[ ] Phase 6 — Evaluation & Explainability (Required)
+A Python virtual environment (.venv/) is used locally and excluded from version control.
 
-    Grad-CAM
-    Calibration curves
-    Dataset-shift analysis
+📬 Contact
 
-[ ] Phase 7 — Dissertation Deliverables (Required)
-
-    Write methodology chapter
-    Include all diagrams
-    Present results, comparison, limitations
-
----
-
-# 📬 Contact
-
-See the `docs/` directory for methodology, architecture notes, and experiment logs.
+Refer to the tests/ and notebooks/ directories for validation outputs, diagnostic plots, and exploratory analyses supporting the methodology.

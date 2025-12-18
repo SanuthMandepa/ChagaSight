@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import h5py
 import matplotlib.pyplot as plt
+from tqdm import tqdm  # ← ADD THIS IMPORT
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -89,6 +90,7 @@ def analyze_samitrop_signal_characteristics():
         plt.tight_layout()
         
         output_path = Path("tests/verification_outputs/samitrop_signal_analysis.png")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(output_path, dpi=150)
         plt.close()
         
