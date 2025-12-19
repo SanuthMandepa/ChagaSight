@@ -28,3 +28,5 @@ logs/
 wandb/
 
 .venv
+
+data/official_wfdb/*
