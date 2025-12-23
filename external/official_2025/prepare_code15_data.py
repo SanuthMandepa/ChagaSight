@@ -1,231 +1,209 @@
-#!/usr/bin/env python
+# scripts/preprocess_code15.py
+"""
+Preprocess CODE-15% from WFDB (after prepare_code15_data.py).
+Generates 500 Hz z-scored and 100 Hz raw .npy.
+Adds soft labels to metadata.
 
-# Load libraries.
+Dataset reference: Zenodo CODE-15% (Ribeiro et al., 2021).
+
+Usage:
+python scripts/preprocess_code15.py --subset 0.1
+
+Notes:
+- Loads from WFDB for Challenge alignment.
+- Depadding for 4096 → 4000/2800 (per paper).
+- No baseline (already filtered per paper).
+- Soft labels: 0.2/0.8 for negatives/positives.
+- Multiprocessing for speed on large subsets.
+- Warnings suppressed.
+- Error handling for failed records.
+"""
 import argparse
-import h5py
+from pathlib import Path
+import time
+import warnings
 import numpy as np
-import os
-import os.path
 import pandas as pd
-import sys
+from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 import wfdb
 
-from helper_code import is_integer, is_boolean, sanitize_boolean_value
+from src.preprocessing.resample import resample_ecg, pad_or_trim
+from src.preprocessing.normalization import zscore_per_lead
+from src.preprocessing.soft_labels import get_chagas_label
 
-# Parse arguments.
-def get_parser():
-    description = 'Prepare the CODE-15% dataset for the Challenge.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--signal_files', type=str, required=True, nargs='*') # exams_part0.hdf5, exams_part1.hdf5, ...
-    parser.add_argument('-d', '--demographics_file', type=str, required=True) # exams.csv
-    parser.add_argument('-l', '--labels_file', type=str, required=True) # code15_chagas_labels.csv
-    parser.add_argument('-f', '--signal_format', type=str, required=False, default='dat', choices=['dat', 'mat'])
-    parser.add_argument('-o', '--output_paths', type=str, required=True, nargs='*')
-    return parser
+# Suppress warnings for clean output
+warnings.filterwarnings("ignore")
 
-# Suppress stdout for noisy commands.
-from contextlib import contextmanager
-@contextmanager
-def suppress_stdout():
-    with open(os.devnull, 'w') as devnull:
-        stdout = sys.stdout
-        sys.stdout = devnull
-        try:
-            yield
-        finally:
-            sys.stdout = stdout
+# Configuration constants
+RAW_DIR = Path("data/official_wfdb/code15")
+OUTPUT_DIR_500 = Path("data/processed/1d_signals_500hz/code15")
+OUTPUT_DIR_100 = Path("data/processed/1d_signals_100hz/code15")
+METADATA_OUTPUT = Path("data/processed/metadata/code15_processed.csv")
 
-# Convert .dat files to .mat files (optional).
-def convert_dat_to_mat(record, write_dir=None):
-    import wfdb.io.convert
+TARGET_FS_IMAGE = 500.0
+TARGET_FS_FM = 100.0
+TARGET_DURATION_SEC = 10.0
+TARGET_SAMPLES_IMAGE = int(TARGET_DURATION_SEC * TARGET_FS_IMAGE)  # 5000
+TARGET_SAMPLES_FM = int(TARGET_DURATION_SEC * TARGET_FS_FM)        # 1000
 
-    # Change the current working directory; wfdb.io.convert.matlab.wfdb_to_matlab places files in the current working directory.
-    if write_dir:
-        cwd = os.getcwd()
-        os.chdir(write_dir)
+ORIGINAL_FS = 400.0  # Native
 
-    # Convert the .dat file to a .mat file.
-    with suppress_stdout():
-        wfdb.io.convert.matlab.wfdb_to_mat(record)
+# No baseline for CODE-15% (already filtered per paper)
+BASELINE_METHOD = None
 
-    # Remove the .dat file.
-    os.remove(record + '.hea')
-    os.remove(record + '.dat')
+N_JOBS = cpu_count() - 1
 
-    # Rename the .mat file.
-    os.rename(record + 'm' + '.hea', record + '.hea')
-    os.rename(record + 'm' + '.mat', record + '.mat')
+def remove_zero_padding(signal, threshold=1e-6):
+    """Remove leading/trailing zero-padding.
+    
+    Parameters:
+    - signal: ECG array (T, 12)
+    - threshold: Amplitude below which is considered zero.
+    
+    Returns:
+    - Depadded signal.
+    """
+    non_zero = np.any(np.abs(signal) > threshold, axis=1)
+    start = np.argmax(non_zero)
+    end = len(non_zero) - np.argmax(non_zero[::-1])
+    return signal[start:end]
 
-    # Update the header file with the renamed record and .mat file.
-    with open(record + '.hea', 'r') as f:
-        output_string = ''
-        for l in f:
-            if l.startswith('#Creator') or l.startswith('#Source'):
-                pass
+def preprocess_single_record(args) -> dict:
+    """Preprocess single CODE-15% WFDB record (for multiprocessing).
+    
+    Parameters:
+    - args: Tuple (exam_id, wfdb_path)
+    
+    Returns:
+    - Dict with paths, lengths, label, or error.
+    """
+    exam_id, wfdb_path = args
+
+    try:
+        record = wfdb.rdrecord(str(wfdb_path))
+        signal = record.p_signal.astype(np.float32)
+        raw_fs = record.fs
+
+        if signal.shape[1] != 12:
+            warnings.warn(f"Record {wfdb_path} has {signal.shape[1]} leads, forcing to 12")
+            if signal.shape[1] < 12:
+                padded = np.zeros((signal.shape[0], 12), dtype=np.float32)
+                padded[:, :signal.shape[1]] = signal
+                signal = padded
             else:
-                l = l.replace(record + 'm', record)
-                output_string += l
+                signal = signal[:, :12]
 
-    with open(record + '.hea', 'w') as f:
-        f.write(output_string)
+        original_length = signal.shape[0]  # Save here
 
-    # Change the current working directory back to the previous current working directory.
-    if write_dir:
-        os.chdir(cwd)
+        # Depad
+        depadded = remove_zero_padding(signal)
 
-# Fix the checksums from the Python WFDB library.
-def fix_checksums(record, checksums=None):
-    if checksums is None:
-        x = wfdb.rdrecord(record, physical=False)
-        signals = np.asarray(x.d_signal)
-        checksums = np.sum(signals, axis=0, dtype=np.int16)
+        # No baseline (already filtered)
+        filtered = depadded
 
-    header_filename = os.path.join(record + '.hea')
-    string = ''
-    with open(header_filename, 'r') as f:
-        for i, l in enumerate(f):
-            if i == 0:
-                arrs = l.split(' ')
-                num_leads = int(arrs[1])
-            if 0 < i <= num_leads and not l.startswith('#'):
-                arrs = l.split(' ')
-                arrs[6] = str(checksums[i-1])
-                l = ' '.join(arrs)
-            string += l
+        # 500 Hz + z-score for images
+        signal_500, _ = resample_ecg(filtered, raw_fs, TARGET_FS_IMAGE)
+        signal_500 = pad_or_trim(signal_500, TARGET_SAMPLES_IMAGE)
+        normalized_500 = zscore_per_lead(signal_500)
 
-    with open(header_filename, 'w') as f:
-        f.write(string)
+        # 100 Hz raw for FM
+        signal_100, _ = resample_ecg(filtered, raw_fs, TARGET_FS_FM)
+        signal_100 = pad_or_trim(signal_100, TARGET_SAMPLES_FM)
 
-# Run script.
-def run(args):
-    # Load the patient demographic data.
-    exam_id_to_age = dict()
-    exam_id_to_sex = dict()
+        # Save
+        np.save(OUTPUT_DIR_500 / f"{exam_id}.npy", normalized_500)
+        np.save(OUTPUT_DIR_100 / f"{exam_id}.npy", signal_100)
 
-    df = pd.read_csv(args.demographics_file)
-    for idx, row in df.iterrows():
-        exam_id = row['exam_id']
-        assert(is_integer(exam_id))
-        exam_id = int(exam_id)
+        # Metadata with soft label (parse from header)
+        chagas_comment = [c for c in record.comments if 'Chagas label' in c]
+        chagas = True if chagas_comment and 'True' in chagas_comment[0] else False
+        label = get_chagas_label({'chagas': chagas}, 'code15')
 
-        age = row['age']
-        assert(is_integer(age))
-        age = int(age)
-        exam_id_to_age[exam_id] = age
+        return {
+            "exam_id": exam_id,
+            "path_500hz": str(OUTPUT_DIR_500 / f"{exam_id}.npy"),
+            "path_100hz": str(OUTPUT_DIR_100 / f"{exam_id}.npy"),
+            "original_length": original_length,
+            "depadded_length": depadded.shape[0],
+            "label": label
+        }
 
-        is_male = row['is_male']
-        assert(is_boolean(is_male))
-        is_male = sanitize_boolean_value(is_male)
-        sex = 'Male' if is_male else 'Female' # This variable was encoding as a binary value.
-        exam_id_to_sex[exam_id] = sex
+    except Exception as e:
+        return {"exam_id": exam_id, "error": str(e)}
 
-    # Load the Chagas labels.
-    exam_id_to_chagas = dict()
+def main(subset_fraction: float = 0.1):
+    start_time = time.time()
 
-    df = pd.read_csv(args.labels_file)
-    for idx, row in df.iterrows():
-        exam_id = row['exam_id']
-        assert(is_integer(exam_id))
-        exam_id = int(exam_id)
+    OUTPUT_DIR_500.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR_100.mkdir(parents=True, exist_ok=True)
+    METADATA_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
-        chagas = row['chagas']
-        assert(is_boolean(chagas))
-        chagas = sanitize_boolean_value(chagas)
-        exam_id_to_chagas[exam_id] = bool(chagas)
+    # Load metadata to get exam_ids (for subset)
+    csv_path = Path("data/raw/code15/exams.csv")
+    df = pd.read_csv(csv_path)
+    print(f"📄 Loaded metadata: {len(df)} exams")
 
-    # Load and convert the signal data.
+    # Apply subset
+    if subset_fraction < 1.0:
+        df = df.sample(frac=subset_fraction, random_state=42).reset_index(drop=True)
+        print(f"⚠️ SUBSET MODE: Using {len(df)} exams ({subset_fraction*100:.1f}% of total)")
 
-    # See https://zenodo.org/records/4916206 for more information about these values.
-    lead_names = ['I', 'II', 'III', 'AVR', 'AVL', 'AVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
-    sampling_frequency = 400
-    units = 'mV'
+    # Prepare WFDB paths
+    args_list = []
+    for _, row in df.iterrows():
+        exam_id = int(row["exam_id"])
+        wfdb_path = RAW_DIR / f"{exam_id}"
+        if wfdb_path.with_suffix('.hea').exists():
+            args_list.append((exam_id, wfdb_path))
+        else:
+            print(f"Warning: WFDB missing for {exam_id}")
 
-    # Define the paramaters for the WFDB files.
-    gain = 1000
-    baseline = 0
-    num_bits = 16
-    fmt = str(num_bits)
+    print(f"📂 Found {len(args_list)} valid WFDB records")
 
-    # Define the output paths for the signal files, i.e., you can use a different path for each signal file or the same path for
-    # every signal file.
-    if len(args.output_paths) == len(args.signal_files):
-        signal_files = args.signal_files
-        output_paths = args.output_paths
-    elif len(args.output_paths) == 1:
-        signal_files = args.signal_files
-        output_paths = [args.output_paths[0]]*len(args.signal_files)
-    else:
-        raise Exception('The number of signal files must match the number of output paths.')
+    # Multiprocess
+    with Pool(N_JOBS) as p:
+        results = list(tqdm(p.imap(preprocess_single_record, args_list), total=len(args_list), desc="Processing CODE-15%"))
 
-    num_groups = len(signal_files)
+    # Separate processed/failed
+    processed_records = [r for r in results if 'error' not in r]
+    failed_records = [r for r in results if 'error' in r]
 
-    # Iterate over the input signal files.
-    for k in range(num_groups):
-        signal_file = signal_files[k]
-        output_path = output_paths[k]
-        os.makedirs(output_path, exist_ok=True)
+    # Save metadata
+    if processed_records:
+        pd.DataFrame(processed_records).to_csv(METADATA_OUTPUT, index=False)
+        print(f"\n💾 Metadata saved → {METADATA_OUTPUT}")
 
-        with h5py.File(signal_file, 'r') as f:
-            exam_ids = list(f['exam_id'])
-            num_exam_ids = len(exam_ids)
+    # Summary
+    elapsed = time.time() - start_time
+    total_processed = len(processed_records)
+    total_failed = len(failed_records)
 
-            # Iterate over the exam IDs in each signal file.
-            for i in range(num_exam_ids):
-                exam_id = exam_ids[i]
+    print("\n" + "=" * 60)
+    print("✅ CODE-15% preprocessing complete!")
+    print("=" * 60)
+    print(f"   Processed : {total_processed}")
+    print(f"   Failed    : {total_failed}")
+    print(f"   Total time: {elapsed:.1f} s ({elapsed / 60:.1f} min)")
+    print(f"   Saved to  :")
+    print(f"       Images (500 Hz) → {OUTPUT_DIR_500}")
+    print(f"       FM (100 Hz) → {OUTPUT_DIR_100}")
+    print("=" * 60)
 
-                # Skip exam IDs without Chagas labels.
-                if not exam_id in exam_id_to_chagas:
-                    continue
-                else:
-                    pass
+    if failed_records:
+        print("\n❌ First 10 failed records:")
+        for r in failed_records[:10]:
+            print(f"   {r['exam_id']}: {r['error']}")
+        if len(failed_records) > 10:
+            print(f"   ... and {len(failed_records) - 10} more")
 
-                physical_signals = np.array(f['tracings'][i], dtype=np.float32)
-
-                # Perform basic error checking on the signal.
-                num_samples, num_leads = np.shape(physical_signals)
-                assert(num_leads == 12)
-
-                # Remove zero padding at the start and end of the signals..
-                r = 0
-                while r < num_samples and np.all(physical_signals[r, :] == 0):
-                    r += 1
-
-                s = num_samples
-                while s > r and np.all(physical_signals[s-1, :] == 0):
-                    s -= 1
-
-                if r >= s:
-                    continue
-                else:
-                    physical_signals = physical_signals[r:s, :]
-
-                # Convert the signal to digital units; saturate the signal and represent NaNs as the lowest representable integer.
-                digital_signals = gain * physical_signals
-                digital_signals = np.round(digital_signals)
-                digital_signals = np.clip(digital_signals, -2**(num_bits-1)+1, 2**(num_bits-1)-1)
-                digital_signals[~np.isfinite(digital_signals)] = -2**(num_bits-1)
-                digital_signals = np.asarray(digital_signals, dtype=np.int32) # We need to promote from 16-bit integers due to an error in the Python WFDB library.
-
-                # Add the exam ID, the patient ID, age, sex, Chagas label, and data source.
-                age = exam_id_to_age[exam_id]
-                sex = exam_id_to_sex[exam_id]
-                chagas = exam_id_to_chagas[exam_id]
-                source = 'CODE-15%'
-                comments = [f'Age: {age}', f'Sex: {sex}', f'Chagas label: {chagas}', f'Source: {source}']
-
-                # Save the signal.
-                record = str(exam_id)
-                wfdb.wrsamp(record, fs=sampling_frequency, units=[units]*num_leads, sig_name=lead_names,
-                            d_signal=digital_signals, fmt=[fmt]*num_leads, adc_gain=[gain]*num_leads, baseline=[baseline]*num_leads,
-                            write_dir=output_path, comments=comments)
-
-                # Convert data from .dat files to .mat files, if requested.
-                if args.signal_format in ('mat', '.mat'):
-                    convert_dat_to_mat(record, write_dir=output_path)
-
-                # Recompute the checksums as needed.
-                checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
-                fix_checksums(os.path.join(output_path, record), checksums)
-
-if __name__=='__main__':
-    run(get_parser().parse_args(sys.argv[1:]))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--subset",
+        type=float,
+        default=0.1,
+        help="Fraction of dataset to process (default=0.1 → 10%)"
+    )
+    args = parser.parse_args()
+    main(args.subset)

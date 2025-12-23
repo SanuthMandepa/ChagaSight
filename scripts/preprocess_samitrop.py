@@ -172,7 +172,7 @@ def main() -> None:
     print(f"   Total time: {elapsed:.1f} s ({elapsed / 60:.1f} min)")
     print(f"   Saved to  :")
     print(f"       Images (500 Hz) → {OUTPUT_DIR_500}")
-    print(f"       FM     (100 Hz) → {OUTPUT_DIR_100}")
+    print(f"       FM (100 Hz) → {OUTPUT_DIR_100}")
     print("=" * 60)
 
     if failed_records:
