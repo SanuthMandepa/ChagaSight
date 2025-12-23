@@ -1,3 +1,4 @@
+# src/preprocessing/soft_labels.py
 """
 Unified Chagas label assignment.
 
@@ -13,145 +14,42 @@ and follows the methodology used in recent challenge-winning approaches.
 
 from typing import Literal, Union, Dict, Any
 import warnings
+import numpy as np
 
-
-def chagas_label_ptbxl(metadata: Dict[str, Any] = None) -> float:
+def get_chagas_label(metadata: Dict[str, Any], dataset: Literal["ptbxl", "sami_trop", "code15"]) -> float:
     """
-    PTB-XL is assumed to be Chagas-negative in this project.
-    
-    Parameters
-    ----------
-    metadata : dict, optional
-        Additional metadata (not used for PTB-XL).
-    
-    Returns
-    -------
-    float
-        Label 0.0 for Chagas-negative.
-    """
-    if metadata is not None:
-        # Could add checks for specific conditions if needed
-        pass
-    return 0.0
+    Assign Chagas label based on dataset.
 
+    Parameters:
+    - metadata: Dict with dataset-specific keys (e.g., 'chagas' for CODE-15%).
+    - dataset: One of "ptbxl", "sami_trop", "code15".
 
-def chagas_label_sami_trop(metadata: Dict[str, Any] = None) -> float:
-    """
-    SaMi-Trop cohort is Chagas-positive.
-    
-    Parameters
-    ----------
-    metadata : dict, optional
-        Additional metadata (not used for SaMi-Trop).
-    
-    Returns
-    -------
-    float
-        Label 1.0 for Chagas-positive.
-    """
-    if metadata is not None:
-        # Could add checks for specific conditions if needed
-        pass
-    return 1.0
-
-
-def chagas_label_code15(
-    raw_label: int, 
-    metadata: Dict[str, Any] = None,
-    soft_positive: float = 0.8,
-    soft_negative: float = 0.2
-) -> float:
-    """
-    Soft-label scheme for CODE-15% (self-reported labels).
-
-    Parameters
-    ----------
-    raw_label : int
-        Binary label from CODE-15% metadata:
-        1 for positive, 0 for negative.
-    metadata : dict, optional
-        Additional metadata for more refined labeling.
-    soft_positive : float
-        Soft label value for positive cases.
-    soft_negative : float
-        Soft label value for negative cases.
-
-    Returns
-    -------
-    float
-        Soft label.
-    """
-    if raw_label not in [0, 1]:
-        raise ValueError(f"CODE-15% raw_label must be 0 or 1, got {raw_label}")
-    
-    if metadata is not None:
-        # Could incorporate additional metadata for more nuanced labeling
-        # For example, quality scores or diagnostic certainty
-        pass
-    
-    if raw_label == 1:
-        return soft_positive
-    else:
-        return soft_negative
-
-
-def map_dataset_label(
-    dataset: Literal["ptbxl", "sami_trop", "code15"], 
-    raw_label: Union[int, None] = None,
-    metadata: Dict[str, Any] = None,
-    **kwargs
-) -> float:
-    """
-    Unified interface to obtain the Chagas label depending on the dataset.
-
-    Parameters
-    ----------
-    dataset : {"ptbxl", "sami_trop", "code15"}
-    raw_label : int | None
-        Original label if available (e.g. for CODE-15%).
-    metadata : dict, optional
-        Additional metadata for label determination.
-    **kwargs : dict
-        Additional keyword arguments passed to the specific label function.
-
-    Returns
-    -------
-    float
-        Final label used for Chagas classification.
+    Returns:
+    - Float label (0.0 to 1.0).
     """
     if dataset == "ptbxl":
-        return chagas_label_ptbxl(metadata=metadata, **kwargs)
+        return 0.0  # All negative per Challenge
     elif dataset == "sami_trop":
-        return chagas_label_sami_trop(metadata=metadata, **kwargs)
+        return 1.0  # All positive
     elif dataset == "code15":
-        if raw_label is None:
-            raise ValueError("CODE-15% requires raw_label (0 or 1) to compute soft label.")
-        return chagas_label_code15(raw_label, metadata=metadata, **kwargs)
+        chagas = metadata.get('chagas')
+        if chagas is None:
+            warnings.warn(f"Missing 'chagas' in metadata for {dataset} - assuming negative")
+            return 0.2
+        return 0.8 if bool(chagas) else 0.2
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
-
-def create_label_confidence_mask(
-    labels: np.ndarray,
-    dataset: str,
-    confidence_threshold: float = 0.7
-) -> np.ndarray:
+def is_confident_label(labels: Union[float, np.ndarray], dataset: Literal["ptbxl", "sami_trop", "code15"]) -> Union[bool, np.ndarray]:
     """
-    Create a confidence mask based on label values.
-    
-    Parameters
-    ----------
-    labels : np.ndarray
-        Array of soft labels.
-    dataset : str
-        Dataset identifier.
-    confidence_threshold : float
-        Threshold for considering a label confident.
-    
-    Returns
-    -------
-    np.ndarray
-        Boolean mask indicating confident labels.
+    Check if labels are confident (hard negatives/positives).
+
+    Parameters:
+    - labels: Single float or array of labels.
+    - dataset: Dataset identifier.
+
+    Returns:
+    - Bool or array of bools (True if confident).
     """
     labels = np.asarray(labels)
     

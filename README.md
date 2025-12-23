@@ -1,264 +1,180 @@
-📌 1. Project Overview
+ChagaSight — Detecting Chagas Disease from 12-Lead ECGs Using Physiologically Structured 2D Images and Vision Transformer
+A Final-Year Research Project inspired by the George B. Moody PhysioNet Challenge 2025
+Overview
+ChagaSight is a modular, reproducible deep learning framework for detecting Chagas disease from standard 12-lead ECG recordings. The project innovatively combines the strengths of two top-performing approaches from the 2025 PhysioNet Challenge:
 
-ChagaSight is a modular deep-learning research framework designed to investigate whether Vision Transformers, when trained on physiologically meaningful ECG image representations, can effectively detect Chagas disease across multiple ECG datasets.
+Primary Innovation: Physiologically structured 2D contour images (Kim et al., 2025) fed into a Vision Transformer architecture inspired by Van Santvliet et al. (2025), the Challenge winners.
+Core Idea: Transform raw ECG signals into spatial-preserving 2D embeddings (RA/LA/LL contours) as input to a powerful ECG-domain ViT. This achieves superior representation of both temporal dynamics and inter-lead relationships, potentially outperforming the winning 1D ViT foundation model.
 
-The project places primary emphasis on:
+This hybrid approach is original — neither paper combined structured 2D images with a ViT designed for ECG sequences. The framework is built on top of the official PhysioNet Challenge 2025 code base for full reproducibility and submission compatibility.
+Project Objectives
 
-Transforming raw 12-lead ECG signals into structured 2D images and preparing a Vision Transformer classifier for disease detection.
+Reproduce and extend Kim et al.'s 2D contour embedding with preserved spatial information.
+Apply the resulting 2D images to a ViT architecture inspired by Van Santvliet et al.'s ECG-pretrained foundation model.
+Integrate official PhysioNet Challenge data processing and evaluation tools for standardization.
+Achieve strong performance on the Challenge metric (fraction of true positives in top 5% ranked cohort), AUROC, AUPRC, etc.
+Provide explainability via Grad-CAM visualizations and ablation studies (e.g., 1D vs. 2D input).
+Validate the full pipeline through extensive testing and comparisons.
 
-In addition, the architecture is designed to support future extensions, including 1D ECG foundation models and hybrid alignment strategies. These extensions are explicitly marked as optional and non-essential for the core dissertation contribution.
+Data Sources (PhysioNet Challenge 2025 Training Set)
 
-📚 Research Inspiration
+PTB-XL (21,799 records, 500 Hz, Europe): All Chagas-negative (strong geographic labels).
+SaMi-Trop (1,631 records, 400 Hz, Brazil): All Chagas-positive (strong, serologically validated).
+CODE-15% (~345,000 records; current subset ~34k, 400 Hz, Brazil): Mixed weak self-reported labels (~2% positive), with soft labeling applied during training to handle noise.
 
-The design of ChagaSight is informed by two contemporary ECG-AI research directions:
-
-Physiologically Structured 2D ECG Image Embedding (2025)
-— converting ECG signals into spatially structured image representations.
-
-Vision Transformer–Based ECG Foundation Models (2025)
-— applying transformer architectures to ECG signals using self-supervised learning.
-
-These works inspire architectural choices, but the implementation focuses on a practical, verifiable, and reproducible pipeline suitable for academic evaluation.
-
-📊 2. Supported Datasets
-
-ChagaSight currently supports three widely used 12-lead ECG datasets in modern ECG research.
-
-Dataset Description Sample Rate Chagas Label
-PTB-XL European clinical ECG dataset (~21k recordings) 100 / 500 Hz All negative (0)
-CODE-15% Brazilian population ECG cohort 400 Hz Soft labels: 0.2 / 0.8
-SaMi-Trop Serology-confirmed Chagas cohort 400 Hz All positive (1)
-✔ Label Policy
-
-The following labeling strategy is adopted in line with state-of-the-art ECG-AI research:
-
-Dataset Confidence Label Assignment
-PTB-XL Very strong negative 0
-SaMi-Trop Very strong positive 1
-CODE-15% Weak / self-reported Soft labels (0.2 / 0.8)
-📁 3. Project Folder Structure
-
-The structure below represents the logical system architecture.
-Large datasets and virtual-environment internals are intentionally excluded.
-
-ChagaSight/
-├── .git/
-├── .venv/ # Python virtual environment (ignored in version control)
-│
+All raw data is converted to the official WFDB format using PhysioNet-provided scripts (prepare*ptbxl_data.py, prepare_samitrop_data.py, prepare_code15_data.py), which embed Chagas labels in .hea headers.
+Pipeline Overview
+textRaw Data (HDF5 / WFDB Files)
+↓
+Official PhysioNet Preprocessing (prepare*\*.py) → WFDB (.hea + .dat) with embedded labels
+↓
+Custom Preprocessing (build_2d_images_wfdb.py):
+• Load via wfdb.rdsamp
+• Baseline wander removal (bandpass filter 0.5-45 Hz)
+• Resample to 500 Hz (polyphase, anti-aliased)
+• Per-lead z-score normalization
+• Clip to [-3, 3] std dev
+↓
+2D Contour Image Embedding (image_embedding.py, from Kim et al., 2025)
+• RA/LA/LL referenced channels
+• Output: 3 × 24 × 2048 float32 image (preserves spatial lead relationships)
+↓
+Vision Transformer Classification (train_vit.ipynb, inspired by Van Santvliet et al., 2025)
+• 2D patch embedding on contour image (resized to 224x224)
+• ViT-Base (12 transformer blocks + [CLS] token)
+• Soft labels applied via soft_labels.py (strong for PTB-XL/SaMi-Trop, soft 0.2/0.8 for CODE-15%)
+• Cosine alignment loss to 1D FM (future extension)
+• Fine-tuned for binary Chagas probability
+↓
+Evaluation (evaluate_model.py from PhysioNet)
+• Official Challenge score (top 5% prioritization)
+• AUROC, AUPRC, F1, Accuracy
+• Grad-CAM visualizations for explainability
+Project Structure
+textChagaSight/
 ├── data/
-│ ├── raw/ # Original unmodified ECG datasets
-│ │ ├── ptbxl/
-│ │ ├── code15/
-│ │ └── sami_trop/
-│ │
-│ ├── processed/
-│ │ ├── 1d_signals_100hz/ # FM-compatible 1D ECG signals
-│ │ ├── 1d_signals_500hz/ # High-resolution signals for image embedding
-│ │ ├── 2d_images/ # Structured ECG image representations
-│ │ └── metadata/ # Processed dataset metadata (CSV)
-│ │
-│ └── splits/ # Train / validation / test splits
-│
-├── notebooks/ # Exploratory analysis and development notebooks
-│
-├── scripts/ # Dataset-level preprocessing scripts
-│ ├── preprocess_ptbxl.py
-│ ├── preprocess_code15.py
-│ ├── preprocess_code15_corrected.py
-│ ├── preprocess_samitrop.py
-│ ├── preprocess_samitrop_updated.py
-│ ├── build_images.py
-│ └── validate_single_ecg.py
-│
+│ ├── raw/ # Original unchanged datasets
+│ │ ├── ptbxl/ # PTB-XL raw WFDB files
+│ │ ├── sami_trop/ # SaMi-Trop HDF5 and CSV
+│ │ └── code15/ # CODE-15% HDF5 shards and exams.csv + code15_chagas_labels.csv
+│ └── official_wfdb/ # Official WFDB output from PhysioNet scripts
+│ ├── ptbxl/ # PTB-XL .hea/.dat with embedded labels
+│ ├── sami_trop/ # SaMi-Trop .hea/.dat
+│ └── code15/ # CODE-15% .hea/.dat
+├── data/processed/
+│ └── 2d_images/ # Generated 2D contour images (3×24×2048 .npy)
+│ ├── ptbxl/
+│ ├── sami_trop/
+│ └── code15/
+├── external/
+│ └── official_2025/ # Cloned PhysioNet Challenge example repo[](https://github.com/physionetchallenges/python-example-2025)
+│ ├── prepare_ptbxl_data.py # PhysioNet script: Converts PTB-XL to WFDB with labels
+│ ├── prepare_samitrop_data.py # PhysioNet script: Converts SaMi-Trop to WFDB with labels
+│ ├── prepare_code15_data.py # PhysioNet script: Converts CODE-15% to WFDB with labels
+│ ├── evaluate_model.py # PhysioNet script: Computes Challenge score, AUROC, etc.
+│ ├── helper_code.py # PhysioNet helper: Utility functions (e.g., load signals)
+│ ├── team_code.py # PhysioNet template: For custom training/inference (adapt for ViT)
+│ ├── train_model.py # PhysioNet wrapper: Calls team_code.train_model
+│ ├── run_model.py # PhysioNet wrapper: Calls team_code.run_model
+│ ├── Dockerfile # For PhysioNet submission
+│ ├── LICENSE # BSD 2-Clause
+│ ├── README.md # PhysioNet example README
+│ └── requirements.txt # PhysioNet dependencies
 ├── src/
-│ ├── preprocessing/ # Core ECG signal processing modules
-│ │ ├── baseline_removal.py
-│ │ ├── resample.py
-│ │ ├── normalization.py
-│ │ ├── image_embedding.py
-│ │ └── soft_labels.py
-│ │
-│ ├── dataloaders/
-│ │ └── ptbxl_loader.py
-│ │
-│ ├── image_model/ # Image-based model components (planned)
-│ ├── foundation_model/ # Optional FM architecture (design stage)
-│ ├── training/ # Training orchestration (planned)
-│ └── evaluation/ # Evaluation utilities (planned)
-│
-├── tests/ # Scientific verification & validation suite
-│ ├── test_baseline.py
-│ ├── test_resample.py
-│ ├── test_preprocessing_pipeline.py
-│ ├── test_samitrop_preprocessing.py
-│ ├── test_code15_raw.py
-│ ├── analyze_samitrop_signals.py
-│ ├── check_raw_data.py
-│ ├── validate_single_ecg.py
-│ └── verification_outputs/
-│
-├── requirements.txt
-├── .gitignore
-└── README.md
-
-🔧 4. ECG Preprocessing Pipeline
-
-ChagaSight adopts a two-stage preprocessing strategy, fully implemented and verified through scripts and tests.
-
-Stage 1 — 1D ECG Signal Preprocessing (Implemented)
-
-The following steps are applied in a dataset-aware manner:
-
-Baseline drift removal
-
-Resampling to a unified frequency
-
-Padding or trimming to a fixed duration (10 seconds)
-
-Per-lead z-score normalization
-
-Saving processed signals as .npy arrays
-
-Dataset-specific baseline handling:
-
-PTB-XL → band-pass filtering (0.5–45 Hz)
-
-SaMi-Trop → moving-average baseline removal
-
-CODE-15% → no baseline removal (pre-filtered data)
-
-Output directories:
-
-data/processed/1d_signals_500hz/
-data/processed/1d_signals_100hz/
-
-Stage 2 — ECG → Structured 2D Image Conversion (Implemented)
-
-Each ECG is converted into a physiologically structured image using limb-lead reference mapping:
-
-Construction of three channels representing RA, LA, and LL contours
-
-Subtraction of augmented limb-lead reference
-
-Amplitude clipping to [-3, 3]
-
-Linear scaling to [0, 255]
-
-Resizing to 3 × 24 × 2048
-
-Output directory:
-
-data/processed/2d_images/
-
-This representation is optimised for Vision Transformer input.
-
-🧠 5. Model Scope
-A. Vision Transformer (Primary Dissertation Model)
-
-Input: structured 2D ECG images
-
-Architecture: Vision Transformer adapted for rectangular biomedical images
-
-Output: probability of Chagas disease
-
-Status:
-Model training and evaluation constitute the next planned project phase.
-
-B. ECG Foundation Model (Optional Research Extension)
-
-An optional architectural extension is designed for a 1D ECG Foundation Model, inspired by masked self-supervised learning (e.g. ST-MEM).
-
-Status:
-Design exploration only.
-Not required for core dissertation results.
-
-C. Hybrid FM + ViT Alignment (Future Research Direction)
-
-A proposed hybrid model aims to align 1D FM embeddings with 2D ViT embeddings using a cosine-similarity–based objective.
-
-Status:
-Conceptual design only.
-
-🧪 6. Training & Validation Workflow
-Implemented
-
-1D ECG preprocessing (scripts/preprocess\_\*.py)
-
-ECG → 2D image generation (scripts/build_images.py)
-
-Pipeline validation (tests/validate_single_ecg.py)
-
-Validation includes:
-
-Signal integrity checks
-
-Frequency-domain inspection
-
-Lead-wise consistency analysis
-
-1D ↔ 2D correspondence
-
-Planned
-
-Vision Transformer training
-
-Model evaluation and explainability
-
-📈 7. Evaluation Metrics (Planned)
-
-AUROC
-
-AUPRC
-
-Accuracy
-
-F1-score
-
-Calibration curves
-
-Confusion matrices
-
-Explainability techniques (e.g. Grad-CAM) are planned for future evaluation.
-
-🔍 8. Key Contributions
-✔ Implemented
-
-Physiologically structured 2D ECG image pipeline
-
-Unified multi-dataset preprocessing
-
-Comprehensive verification and validation suite
-
-◻ Planned
-
-Vision Transformer classifier training
-
-Performance evaluation and explainability
-
-Optional foundation-model experiments
-
-🚀 9. Roadmap
-
-1D ECG preprocessing
-
-Structured 2D image generation
-
-Validation & verification
-
-Vision Transformer training
-
-Model evaluation & explainability
-
-Dissertation writing & submission
-
-📦 Reproducibility
-
-All dependencies are defined in:
-
-requirements.txt
-
-A Python virtual environment (.venv/) is used locally and excluded from version control.
-
-📬 Contact
-
-Refer to the tests/ and notebooks/ directories for validation outputs, diagnostic plots, and exploratory analyses supporting the methodology.
+│ └── preprocessing/
+│ ├── baseline_removal.py # Bandpass/highpass filters for wander removal
+│ ├── resample.py # Polyphase resampling to 500/100 Hz
+│ ├── normalization.py # Z-score normalization per lead
+│ ├── image_embedding.py # RA/LA/LL contour mapping (Kim et al.)
+│ └── soft_labels.py # Dataset-specific Chagas labels (strong/soft)
+├── scripts/
+│ ├── custom_old/ # Archived early custom preprocessing scripts
+│ │ ├── preprocess_ptbxl.py
+│ │ ├── preprocess_samitrop.py
+│ │ ├── preprocess_samitrop_updated.py
+│ │ ├── preprocess_code15.py
+│ │ └── preprocess_code15_corrected.py
+│ └── build_2d_images_wfdb.py # Current: Full pipeline from WFDB to 2D images (parallelized)
+├── tests/
+│ ├── old/ # Archived early validation scripts
+│ │ ├── test_baseline.py # Tests baseline removal
+│ │ ├── test_resample.py # Tests resampling
+│ │ ├── test_preprocessing_pipeline.py # Old dual-FS pipeline test
+│ │ ├── test_code15_raw.py # Old CODE-15% raw check
+│ │ ├── test_samitrop_preprocessing.py # Old SaMi-Trop test
+│ │ ├── analyze_samitrop_signals.py # Old SaMi-Trop analysis
+│ │ ├── check_raw_data.py # Old raw data check
+│ │ └── validate_single_ecg.py # Old single ECG validation
+│ ├── test_wfdb_data.py # New: Checks WFDB data presence/integrity
+│ ├── test_baseline.py # (Kept) Component test for baseline
+│ ├── test_resample.py # (Kept) Component test for resample
+│ ├── test_image_embedding.py # New: Tests contour embedding
+│ ├── test_soft_labels.py # New: Tests soft label assignment
+│ ├── test_full_pipeline.py # New: Tests full WFDB → 2D pipeline
+│ ├── check_processed_data.py # New: Checks processed images (counts, samples)
+│ ├── verify_official_data.py # (Kept) WFDB verification
+│ └── check_data.py # (Kept) Legacy integrity check
+├── notebooks/
+│ └── train_vit.ipynb # Interactive ViT training, visualization, evaluation
+├── outputs/ # Model weights, metrics, plots
+├── configs/
+│ └── vit_config.yaml # ViT hyperparameters
+├── README.md # This file
+└── requirements.txt # Dependencies (includes PhysioNet + custom for ViT: torch, transformers)
+Current Status & Roadmap
+
+PhaseStatusDescription
+
+Data Acquisition | Complete | Raw datasets + official Chagas labels downloaded.
+Official WFDB Conversion | Complete | Used PhysioNet scripts (prepare\_\*.py) for standardization.
+2D Contour Image Generation | Complete | From WFDB → custom pipeline → 3×24×2048 images (build_2d_images_wfdb.py).
+Hybrid ViT Training | In Progress | 2D images → Van Santvliet-inspired ViT (train_vit.ipynb).
+Evaluation & Explainability | Planned | Challenge score (evaluate_model.py), Grad-CAM, ablations.
+Full Dataset Scaling | Post-Demo | Complete CODE-15% processing.
+
+Reproducibility
+All dependencies are defined in requirements.txt (includes PhysioNet's wfdb, numpy, etc., plus custom for ViT: torch, transformers).
+Activate virtual environment:
+text.venv\Scripts\activate # Windows
+Install dependencies:
+textpip install -r requirements.txt
+Run WFDB conversion (PhysioNet scripts in external/official_2025/):
+textpython external/official_2025/prepare_samitrop_data.py -i data/raw/sami_trop/exams.hdf5 -d data/raw/sami_trop/exams.csv -o data/official_wfdb/sami_trop
+
+# Similar for PTB-XL and CODE-15%
+
+Generate 2D images:
+textpython -m scripts.build_2d_images_wfdb --subset 1.0
+Train ViT:
+
+Open notebooks/train_vit.ipynb in Jupyter.
+
+Run tests:
+textpython -m unittest discover tests
+Outputs (plots, summaries) in tests/verification_outputs_new/ and outputs/.
+Tests & Verification
+Use tests/ folder for validation:
+
+test_wfdb_data.py: WFDB data checks (counts, labels, plots).
+test_baseline.py: Baseline removal test.
+test_resample.py: Resampling test.
+test_image_embedding.py: Contour embedding test.
+test_soft_labels.py: Soft label assignment test.
+test_full_pipeline.py: Full WFDB → 2D test.
+check_processed_data.py: Processed images checks (counts, samples, plots).
+verify_official_data.py & check_data.py: Legacy WFDB/integrity checks.
+
+All tests output to tests/verification_outputs_new/ for comparisons (e.g., raw vs processed plots).
+References
+
+Kim et al. (2025). "Embedding ECG Signals into 2D Image with Preserved Spatial Information for Chagas Disease Classification"
+Van Santvliet et al. (2025). "Detecting Chagas Disease Using a Vision Transformer–based ECG Foundation Model"
+George B. Moody PhysioNet Challenge 2025: https://physionetchallenges.org/2025/
+Official example code: https://github.com/physionetchallenges/python-example-2025
+
+License
+Custom code © 2025 [Your Name]. Official PhysioNet components under BSD 2-Clause (as per LICENSE in external/official_2025/).
+This README provides a complete overview, setup instructions, and detailed structure. Save it as README.md. For the full script updates (RAM-safe, per-dataset run, batching), use the previous response's code with N_JOBS=2 for CODE-15%. Run per-dataset to avoid crashes:
+Bashpython -m scripts.build_2d_images_wfdb --subset 1.0 # For SaMi-Trop/PTB-XL
+
+# Then change DATASETS = ["code15"] and run again
