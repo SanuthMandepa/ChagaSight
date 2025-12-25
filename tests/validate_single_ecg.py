@@ -32,16 +32,25 @@ from scipy.signal import spectrogram
 from src.preprocessing.baseline_removal import remove_baseline
 from src.preprocessing.resample import resample_ecg, pad_or_trim
 from src.preprocessing.normalization import normalize_dataset
+from src.preprocessing.image_embedding import ecg_to_contour_image
 
-OUT_DIR_BASE = Path("tests/verification_outputs/pipeline")
+OUT_DIR_BASE = Path("tests/verification_outputs_2/pipeline")
 TARGET_FS_IMAGE = 500.0
 TARGET_FS_FM = 100.0
 TARGET_DURATION_SEC = 10.0
 TARGET_SAMPLES_500 = int(TARGET_DURATION_SEC * TARGET_FS_IMAGE)  # 5000
 TARGET_SAMPLES_100 = int(TARGET_DURATION_SEC * TARGET_FS_FM)      # 1000
+TARGET_WIDTH = 2048
+CLIP_RANGE = (-3.0, 3.0)
 
 def ensure_dir(path: Path):
     path.mkdir(parents=True, exist_ok=True)
+
+def remove_zero_padding(signal: np.ndarray, threshold: float = 1e-6) -> np.ndarray:
+    non_zero = np.any(np.abs(signal) > threshold, axis=1)
+    start = np.argmax(non_zero)
+    end = len(non_zero) - np.argmax(non_zero[::-1])
+    return signal[start:end] if start < end else signal
 
 def load_raw_signal(dataset: str, id_val: str, ptbxl_raw_rel: str = None) -> tuple[np.ndarray, float]:
     if dataset == 'ptbxl':
@@ -92,32 +101,44 @@ def load_wfdb_signal(dataset: str, id_val: str) -> tuple[np.ndarray, float]:
         return record.p_signal.astype(np.float32), float(record.fs)
 
 def load_saved_100hz(dataset: str, id_val: str) -> np.ndarray:
-    path = Path(f"data/processed/1d_signals_100hz/{dataset}/{id_val}.npy")
+    if dataset == 'ptbxl':
+        file_id = f"{int(id_val):05d}_hr"
+    else:
+        file_id = id_val
+    path = Path(f"data/processed/1d_signals_100hz/{dataset}/{file_id}.npy")
     if not path.exists():
         raise FileNotFoundError(f"Saved 100 Hz signal not found: {path}")
     return np.load(path)
 
 def load_saved_image(dataset: str, id_val: str) -> np.ndarray:
-    path = Path(f"data/processed/2d_images/{dataset}/{id_val}_img.npy")
+    if dataset == 'ptbxl':
+        file_id = f"{int(id_val):05d}_hr"
+    else:
+        file_id = id_val
+    path = Path(f"data/processed/2d_images/{dataset}/{file_id}_img.npy")
     if not path.exists():
         raise FileNotFoundError(f"Saved image not found: {path}")
     return np.load(path)
 
 def simulate_pipeline(wfdb_signal: np.ndarray, wfdb_fs: float, dataset: str) -> dict:
     """Reproduce the exact processing done in build_2d_images_wfdb.py"""
+    signal = wfdb_signal
+    if dataset in ['sami_trop', 'code15']:
+        signal = remove_zero_padding(signal)
+
     # Baseline removal
     if dataset == 'ptbxl':
-        filtered = remove_baseline(wfdb_signal, wfdb_fs, 'bandpass', low_cut_hz=0.5, high_cut_hz=45.0, order=4)
+        filtered = remove_baseline(signal, wfdb_fs, 'bandpass', low_cut_hz=0.5, high_cut_hz=45.0, order=4)
     elif dataset == 'sami_trop':
-        filtered = remove_baseline(wfdb_signal, wfdb_fs, 'moving_average', window_seconds=0.2)
+        filtered = remove_baseline(signal, wfdb_fs, 'moving_average', window_seconds=0.2)
     else:
-        filtered = wfdb_signal
+        filtered = signal
 
     # 500 Hz path
     signal_500, _ = resample_ecg(filtered, wfdb_fs, TARGET_FS_IMAGE)
     signal_500 = pad_or_trim(signal_500, TARGET_SAMPLES_500)
     zscored_500 = normalize_dataset(signal_500)
-    zscored_500 = np.clip(zscored_500, -3.0, 3.0)
+    zscored_500 = np.clip(zscored_500, CLIP_RANGE[0], CLIP_RANGE[1])
 
     # 100 Hz path
     signal_100, _ = resample_ecg(filtered, wfdb_fs, TARGET_FS_FM)
@@ -130,20 +151,25 @@ def simulate_pipeline(wfdb_signal: np.ndarray, wfdb_fs: float, dataset: str) -> 
         'resampled_100': signal_100,
     }
 
-def check_pipeline(simulated_500: np.ndarray, saved_image: np.ndarray):
-    assert simulated_500.shape == (5000, 12), "Simulated 500Hz wrong shape"
-    assert saved_image.shape == (3, 24, 2048), "Saved image wrong shape"
+def verify_outputs(steps: dict, saved_100: np.ndarray, saved_image: np.ndarray):
+    assert steps['zscored_500'].shape == (TARGET_SAMPLES_500, 12), "Simulated 500Hz wrong shape"
+    assert saved_image.shape == (3, 24, TARGET_WIDTH), "Saved image wrong shape"
 
-    means = np.mean(simulated_500, axis=0)
-    stds = np.std(simulated_500, axis=0)
+    means = np.mean(steps['zscored_500'], axis=0)
+    stds = np.std(steps['zscored_500'], axis=0)
     if not (np.allclose(means, 0, atol=1e-5) and np.allclose(stds, 1, atol=1e-5)):
         print("Warning: Simulated 500Hz not perfectly z-scored")
 
-    clipped = np.mean((simulated_500 <= -3) | (simulated_500 >= 3)) * 100
+    clipped = np.mean((steps['zscored_500'] <= CLIP_RANGE[0]) | (steps['zscored_500'] >= CLIP_RANGE[1])) * 100
     if clipped > 5:
         print(f"High clipping in simulated 500Hz: {clipped:.1f}%")
 
-    print("✅ Pipeline simulation successful")
+    assert np.allclose(steps['resampled_100'], saved_100, atol=1e-4), "100 Hz mismatch"
+
+    sim_image = ecg_to_contour_image(steps['zscored_500'], target_width=TARGET_WIDTH, clip_range=CLIP_RANGE)
+    assert np.allclose(sim_image, saved_image, atol=1e-3), "Image mismatch"
+
+    print("✅ Pipeline verification successful")
 
 # Plotting functions (unchanged)
 def plot_signal_comparison(title: str, signals: list, fs_list: list, labels: list, lead: int = 0, fname: Path | None = None):
@@ -209,24 +235,38 @@ def plot_image_row_comparison(zscored_500: np.ndarray, image: np.ndarray, row: i
     plt.savefig(fname, dpi=150)
     plt.close()
 
-def validate_single_ecg(dataset: str, ecg_id: str, ptbxl_raw_rel: str = None, row: int = 10):
+def validate_single_ecg(dataset: str, ecg_id: str, row: int = 10):
     out_dir = OUT_DIR_BASE / dataset / f"ecg_{ecg_id}"
     ensure_dir(out_dir)
     print(f"📂 Outputs: {out_dir}")
 
     # Load signals
-    raw_signal, raw_fs = load_raw_signal(dataset, ecg_id, ptbxl_raw_rel)
+    raw_signal, raw_fs = load_raw_signal(dataset, ecg_id)
     wfdb_signal, wfdb_fs = load_wfdb_signal(dataset, ecg_id)
 
     # Simulate the exact build pipeline
     steps = simulate_pipeline(wfdb_signal, wfdb_fs, dataset)
 
     # Load actual saved outputs
-    saved_100 = load_saved_100hz(dataset, ecg_id)
-    saved_image = load_saved_image(dataset, ecg_id)
+    try:
+        saved_100 = load_saved_100hz(dataset, ecg_id)
+    except FileNotFoundError:
+        print("Warning: Saved 100 Hz not found, skipping comparison")
+        saved_100 = None
+
+    try:
+        saved_image = load_saved_image(dataset, ecg_id)
+    except FileNotFoundError:
+        print("Warning: Saved image not found, skipping comparison")
+        saved_image = None
 
     # Final checks
-    check_pipeline(steps['zscored_500'], saved_image)
+    if saved_100 is not None and saved_image is not None:
+        verify_outputs(steps, saved_100, saved_image)
+    elif saved_100 is not None or saved_image is not None:
+        print("Partial verification: Some saved files missing")
+    else:
+        print("No saved files found; simulation only")
 
     # === PLOTS ===
     # 01-02: Raw and WFDB
@@ -238,34 +278,39 @@ def validate_single_ecg(dataset: str, ecg_id: str, ptbxl_raw_rel: str = None, ro
 
     # 04-06: 500 Hz path (simulated)
     plot_signal_comparison("04 Resampled 500 Hz Lead I", [steps['resampled_500']], [TARGET_FS_IMAGE], ["Resampled"], fname=out_dir / "04_resampled_500hz_lead1.png")
-    plot_signal_comparison("05 Fixed 10s 500 Hz Lead I", [steps['zscored_500']], [TARGET_FS_IMAGE], ["Fixed + Z-scored"], fname=out_dir / "05_fixed_10s_500hz_lead1.png")
+    plot_signal_comparison("05 Fixed 10s 500 Hz Lead I", [steps['resampled_500']], [TARGET_FS_IMAGE], ["Fixed Length"], fname=out_dir / "05_fixed_10s_500hz_lead1.png")
     plot_signal_comparison("06 Z-scored + Clipped 500 Hz Lead I", [steps['zscored_500']], [TARGET_FS_IMAGE], ["Final 500 Hz"], fname=out_dir / "06_zscore_clipped_500hz_lead1.png")
 
-    # 07-08: 100 Hz path (saved)
-    plot_signal_comparison("07 Resampled 100 Hz Lead I", [steps['resampled_100']], [TARGET_FS_FM], ["Simulated"], fname=out_dir / "07_resampled_100hz_lead1.png")
-    plot_signal_comparison("08 Saved 100 Hz Lead I", [saved_100], [TARGET_FS_FM], ["Saved FM Signal"], fname=out_dir / "08_saved_100hz_lead1.png")
+    # 07-08: 100 Hz path
+    plot_signal_comparison("07 Simulated 100 Hz Lead I", [steps['resampled_100']], [TARGET_FS_FM], ["Simulated"], fname=out_dir / "07_resampled_100hz_lead1.png")
+    if saved_100 is not None:
+        plot_signal_comparison("08 Saved 100 Hz Lead I", [saved_100], [TARGET_FS_FM], ["Saved FM Signal"], fname=out_dir / "08_saved_100hz_lead1.png")
 
     # Comparisons
     plot_signal_comparison("09 Raw vs WFDB", [raw_signal, wfdb_signal], [raw_fs, wfdb_fs], ["Raw", "WFDB"], fname=out_dir / "09_raw_vs_wfdb_lead1.png")
     plot_signal_comparison("10 WFDB vs Simulated 500 Hz", [wfdb_signal, steps['zscored_500']], [wfdb_fs, TARGET_FS_IMAGE], ["WFDB", "Simulated 500 Hz"], fname=out_dir / "10_wfdb_vs_500hz_lead1.png")
-    plot_signal_comparison("11 WFDB vs Saved 100 Hz", [wfdb_signal, saved_100], [wfdb_fs, TARGET_FS_FM], ["WFDB", "Saved 100 Hz"], fname=out_dir / "11_wfdb_vs_100hz_lead1.png")
-    plot_signal_comparison("12 Simulated 500 Hz vs Saved 100 Hz", [steps['zscored_500'], saved_100], [TARGET_FS_IMAGE, TARGET_FS_FM], ["500 Hz", "100 Hz"], fname=out_dir / "12_500hz_vs_100hz_lead1.png")
+    if saved_100 is not None:
+        plot_signal_comparison("11 WFDB vs Saved 100 Hz", [wfdb_signal, saved_100], [wfdb_fs, TARGET_FS_FM], ["WFDB", "Saved 100 Hz"], fname=out_dir / "11_wfdb_vs_100hz_lead1.png")
+        plot_signal_comparison("12 Simulated 500 Hz vs Saved 100 Hz", [steps['zscored_500'], saved_100], [TARGET_FS_IMAGE, TARGET_FS_FM], ["500 Hz", "100 Hz"], fname=out_dir / "12_500hz_vs_100hz_lead1.png")
 
     # Image plots
-    plot_image_channels(saved_image, out_dir)
-    plot_image_row_comparison(steps['zscored_500'], saved_image, row, out_dir / "18_image_row_comparison.png")
+    if saved_image is not None:
+        plot_image_channels(saved_image, out_dir)
+        plot_image_row_comparison(steps['zscored_500'], saved_image, row, out_dir / "18_image_row_comparison.png")
 
     # Spectrograms
     plot_spectrogram(raw_signal, raw_fs, "19 Raw Spectrogram", out_dir / "19_raw_spectrogram.png")
     plot_spectrogram(wfdb_signal, wfdb_fs, "20 WFDB Spectrogram", out_dir / "20_wfdb_spectrogram.png")
     plot_spectrogram(steps['zscored_500'], TARGET_FS_IMAGE, "21 Simulated 500 Hz Spectrogram", out_dir / "21_500hz_spectrogram.png")
-    plot_spectrogram(saved_100, TARGET_FS_FM, "22 Saved 100 Hz Spectrogram", out_dir / "22_100hz_spectrogram.png")
+    if saved_100 is not None:
+        plot_spectrogram(saved_100, TARGET_FS_FM, "22 Saved 100 Hz Spectrogram", out_dir / "22_100hz_spectrogram.png")
 
     # 12-lead grids
     plot_12leads(raw_signal, raw_fs, "23 Raw 12-Leads", out_dir / "23_raw_12leads.png")
     plot_12leads(wfdb_signal, wfdb_fs, "24 WFDB 12-Leads", out_dir / "24_wfdb_12leads.png")
     plot_12leads(steps['zscored_500'], TARGET_FS_IMAGE, "25 Simulated 500 Hz 12-Leads", out_dir / "25_500hz_12leads.png")
-    plot_12leads(saved_100, TARGET_FS_FM, "26 Saved 100 Hz 12-Leads", out_dir / "26_100hz_12leads.png")
+    if saved_100 is not None:
+        plot_12leads(saved_100, TARGET_FS_FM, "26 Saved 100 Hz 12-Leads", out_dir / "26_100hz_12leads.png")
 
     print(f"✅ Validation complete for {dataset} ID {ecg_id}! Check folder: {out_dir}")
 
