@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 import wfdb
+import pandas as pd
 
 class TestRawData(unittest.TestCase):
     def setUp(self):
@@ -18,51 +19,40 @@ class TestRawData(unittest.TestCase):
             ds_dir = self.raw_dir / ds
             self.assertTrue(ds_dir.exists(), f"{ds} raw folder missing")
 
-    def test_file_counts(self):
-        for ds in self.datasets:
-            ds_dir = self.raw_dir / ds
-            files = list(ds_dir.glob("*"))
-            self.assertGreater(len(files), 0, f"No files in {ds} raw folder")
+    def test_sample_load(self):
+        samples = {'ptbxl': '1', 'sami_trop': '4991', 'code15': '14'}
+        for ds, sample_id in samples.items():
+            try:
+                if ds == 'ptbxl':
+                    df = pd.read_csv(self.raw_dir / ds / "ptbxl_database.csv")
+                    row = df[df['ecg_id'] == int(sample_id)].iloc[0]
+                    path = self.raw_dir / ds / row['filename_hr']
+                    signal, _ = wfdb.rdsamp(str(path))
+                elif ds == 'sami_trop':
+                    df = pd.read_csv(self.raw_dir / ds / "exams.csv")
+                    h5_idx = df[df['exam_id'] == int(sample_id)].index[0]
+                    with h5py.File(self.raw_dir / ds / "exams.hdf5", 'r') as h5:
+                        signal = h5['tracings'][h5_idx].astype(np.float32)
+                elif ds == 'code15':
+                    df = pd.read_csv(self.raw_dir / ds / "exams.csv")
+                    row = df[df['exam_id'] == int(sample_id)].iloc[0]
+                    trace_file = row['trace_file']
+                    with h5py.File(self.raw_dir / ds / trace_file, 'r') as h5:
+                        idx = np.where(h5['exam_id'][:] == int(sample_id))[0][0]
+                        signal = h5['tracings'][idx].astype(np.float32)
 
-    def test_sample_signal(self):
-        for ds in self.datasets:
-            ds_dir = self.raw_dir / ds
-            sample_file = None
+                self.assertEqual(signal.shape[1], 12, f"{ds} sample not 12 leads")
 
-            if ds == 'ptbxl':
-                # PTB-XL: .hea in subfolders
-                for root, _, files in os.walk(ds_dir):
-                    hea_files = [f for f in files if f.endswith('.hea')]
-                    if hea_files:
-                        sample_file = Path(root) / hea_files[0]
-                        break
-            elif ds == 'sami_trop':
-                sample_file = next(ds_dir.glob("exams.hdf5"), None)
-            elif ds == 'code15':
-                sample_file = next(ds_dir.glob("exams_part*.hdf5"), None)
-
-            self.assertIsNotNone(sample_file, f"No sample file found in {ds}")
-
-            # Load signal
-            signal = None
-            if ds == 'ptbxl':
-                sample_rec = sample_file.with_suffix('')
-                signal = wfdb.rdsamp(str(sample_rec))[0]
-            else:
-                with h5py.File(sample_file, 'r') as f:
-                    signal = f['tracings'][0]
-
-            self.assertIsNotNone(signal, f"Failed to load signal for {ds}")
-            self.assertEqual(signal.shape[1], 12, f"{ds} sample not 12 leads")
-
-            plt.figure(figsize=(10, 4))
-            plt.plot(signal[:, 0])
-            plt.title(f"{ds.upper()} Raw Sample (Lead I)")
-            plt.xlabel("Time (samples)")
-            plt.ylabel("Amplitude")
-            plt.grid(True)
-            plt.savefig(self.output_dir / f"{ds}_raw_sample.png")
-            plt.close()
+                plt.figure(figsize=(10, 4))
+                plt.plot(signal[:, 0])
+                plt.title(f"{ds.upper()} Raw Sample (Lead I)")
+                plt.xlabel("Time (samples)")
+                plt.ylabel("Amplitude")
+                plt.grid(True)
+                plt.savefig(self.output_dir / f"{ds}_raw_sample.png")
+                plt.close()
+            except Exception as e:
+                self.fail(f"Raw data test failed for {ds}: {e}")
 
 if __name__ == "__main__":
     unittest.main()

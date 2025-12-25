@@ -40,16 +40,20 @@ Notes:
 - Soft labels added to metadata (0.0 for PTB-XL as negatives).
 - Warnings suppressed for clean output.
 - Detailed error handling for failed records.
+- Parallelized with multiprocessing for speed (N_JOBS adjustable).
+- No depadding needed for PTB-XL (full 10s signals).
 """
 
-from pathlib import Path
+import os
 import time
 import warnings
+from multiprocessing import Pool, cpu_count
+from pathlib import Path
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
 import wfdb
-from tqdm import tqdm
 
 from src.preprocessing.baseline_removal import remove_baseline
 from src.preprocessing.resample import resample_ecg, pad_or_trim
@@ -74,6 +78,7 @@ TARGET_SAMPLES_FM = int(TARGET_DURATION_SEC * TARGET_FS_FM)        # 1000
 # Prefer high-res records (500 Hz) for better quality
 USE_HIGH_RES = True
 ORIGINAL_FS = 500.0 if USE_HIGH_RES else 100.0
+FILENAME_COL = "filename_hr" if USE_HIGH_RES else "filename_lr"
 
 # Baseline removal config (bandpass for PTB-XL per paper alignment)
 BASELINE_METHOD = "bandpass"
@@ -83,52 +88,64 @@ BASELINE_KWARGS = {
     "order": 4,
 }
 
-def preprocess_single_record(record_path: Path, original_fs: float) -> tuple[np.ndarray, np.ndarray, int]:
+# Parallelization config
+N_JOBS = cpu_count() - 1  # Leave one core free for system
+
+def preprocess_single_record(args) -> dict:
     """
-    Preprocess a single WFDB record:
-    1. Load signal.
-    2. Apply baseline removal.
-    3. Resample to 500 Hz (z-scored) and 100 Hz (raw).
-    4. Pad/trim to fixed length.
+    Preprocess a single PTB-XL record.
 
     Parameters:
-    - record_path: Path to WFDB record (without extension).
-    - original_fs: Sampling frequency of the record.
+    - args: Tuple (ecg_id, row) from metadata DataFrame.
 
     Returns:
-    - signal_500: Z-scored signal at 500 Hz for images.
-    - signal_100: Raw signal at 100 Hz for FM.
-    - original_length: For metadata.
+    - Dict with metadata or error.
     """
+    ecg_id, row = args
     try:
-        record = wfdb.rdrecord(str(record_path))
+        rel_path = row[FILENAME_COL]
+        full_path = PTBXL_ROOT / rel_path
+
+        # Load record
+        record = wfdb.rdrecord(str(full_path))
+        signal = record.p_signal.astype(np.float32)
+        fs = record.fs
+
+        # No depadding for PTB-XL (full 10s)
+
+        # Step 2: Baseline removal
+        filtered = remove_baseline(signal, fs=fs, method=BASELINE_METHOD, **BASELINE_KWARGS)
+
+        # Step 3 & 4: Image path - 500 Hz + z-score
+        signal_500, _ = resample_ecg(filtered, fs_in=fs, fs_out=TARGET_FS_IMAGE)
+        signal_500 = pad_or_trim(signal_500, TARGET_SAMPLES_IMAGE)
+        signal_500 = zscore_per_lead(signal_500)
+
+        # FM path - 100 Hz, raw (no z-score)
+        signal_100, _ = resample_ecg(filtered, fs_in=fs, fs_out=TARGET_FS_FM)
+        signal_100 = pad_or_trim(signal_100, TARGET_SAMPLES_FM)
+
+        # Save with numeric ID
+        np.save(OUTPUT_DIR_500 / f"{ecg_id}.npy", signal_500.astype(np.float32))
+        np.save(OUTPUT_DIR_100 / f"{ecg_id}.npy", signal_100.astype(np.float32))
+
+        # Metadata with soft label
+        label = get_chagas_label({'ecg_id': ecg_id}, 'ptbxl')  # 0.0 for PTB-XL
+        return {
+            "ecg_id": ecg_id,
+            "original_path": rel_path,
+            "original_fs": fs,
+            "original_length": signal.shape[0],
+            "path_500hz": str(OUTPUT_DIR_500 / f"{ecg_id}.npy"),
+            "path_100hz": str(OUTPUT_DIR_100 / f"{ecg_id}.npy"),
+            "label": label,
+        }
+
     except Exception as e:
-        raise IOError(f"Failed to read WFDB record {record_path}: {e}")
-
-    signal = record.p_signal.astype(np.float32)
-    original_length = signal.shape[0]  # Save before processing
-    if signal.shape[1] != 12:
-        warnings.warn(f"Record {record_path} has {signal.shape[1]} leads, forcing to 12")
-        if signal.shape[1] < 12:
-            padded = np.zeros((signal.shape[0], 12), dtype=np.float32)
-            padded[:, :signal.shape[1]] = signal
-            signal = padded
-        else:
-            signal = signal[:, :12]
-
-    # Step 2: Baseline removal
-    filtered = remove_baseline(signal, fs=original_fs, method=BASELINE_METHOD, **BASELINE_KWARGS)
-
-    # Step 3 & 4: Image path - 500 Hz + z-score
-    signal_500, _ = resample_ecg(filtered, original_fs, TARGET_FS_IMAGE)
-    signal_500 = pad_or_trim(signal_500, TARGET_SAMPLES_IMAGE)
-    signal_500 = zscore_per_lead(signal_500)
-
-    # FM path - 100 Hz, no z-score
-    signal_100, _ = resample_ecg(filtered, original_fs, TARGET_FS_FM)
-    signal_100 = pad_or_trim(signal_100, TARGET_SAMPLES_FM)
-
-    return signal_500.astype(np.float32), signal_100.astype(np.float32), original_length
+        return {
+            "ecg_id": ecg_id,
+            "error": str(e)
+        }
 
 def main() -> None:
     start_time = time.time()
@@ -145,44 +162,24 @@ def main() -> None:
     df = pd.read_csv(db_path)
     print(f"📄 Loaded {len(df)} PTB-XL records")
 
-    filename_col = "filename_hr" if USE_HIGH_RES else "filename_lr"
-    original_fs = 500.0 if USE_HIGH_RES else 100.0
+    args_list = [(int(row["ecg_id"]), row) for _, row in df.iterrows() if pd.notna(row[FILENAME_COL])]
+
+    with Pool(N_JOBS) as p:
+        results = list(tqdm(p.imap(preprocess_single_record, args_list), total=len(args_list), desc="Processing PTB-XL"))
 
     processed_records = []
     failed_records = []
 
-    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing PTB-XL"):
-        ecg_id = int(row["ecg_id"])
-        rel_path = row[filename_col]
-        full_path = PTBXL_ROOT / rel_path
-
-        try:
-            signal_500, signal_100, original_length = preprocess_single_record(full_path, original_fs)
-
-            # Save
-            np.save(OUTPUT_DIR_500 / f"{ecg_id}.npy", signal_500)
-            np.save(OUTPUT_DIR_100 / f"{ecg_id}.npy", signal_100)
-
-            # Metadata with soft label
-            label = get_chagas_label({'ecg_id': ecg_id}, 'ptbxl')  # 0.0 for PTB-XL
-            processed_records.append({
-                "ecg_id": ecg_id,
-                "original_path": rel_path,
-                "original_fs": original_fs,
-                "original_length": original_length,
-                "path_500hz": str(OUTPUT_DIR_500 / f"{ecg_id}.npy"),
-                "path_100hz": str(OUTPUT_DIR_100 / f"{ecg_id}.npy"),
-                "label": label,
-            })
-
-        except Exception as e:
-            warnings.warn(f"Failed ECG_ID {ecg_id}: {e}")
-            failed_records.append({"ecg_id": ecg_id, "path": rel_path, "error": str(e)})
+    for result in results:
+        if "error" in result:
+            failed_records.append(result)
+        else:
+            processed_records.append(result)
 
     # Save metadata
     if processed_records:
         pd.DataFrame(processed_records).to_csv(METADATA_OUTPUT, index=False)
-        print(f"\n💾 Metadata saved → {METADATA_OUTPUT}")
+        print(f"💾 Metadata saved → {METADATA_OUTPUT}")
 
     # Summary
     elapsed = time.time() - start_time
@@ -193,8 +190,8 @@ def main() -> None:
     print(f"   Failed    : {len(failed_records)}")
     print(f"   Total time: {elapsed:.1f} s ({elapsed / 60:.1f} min)")
     print(f"   Saved to  :")
-    print(f"       Images (500 Hz) → {OUTPUT_DIR_500}")
-    print(f"       FM     (100 Hz) → {OUTPUT_DIR_100}")
+    print(f"       500 Hz → {OUTPUT_DIR_500}")
+    print(f"       100 Hz → {OUTPUT_DIR_100}")
     print("=" * 60)
 
     if failed_records:

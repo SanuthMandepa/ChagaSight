@@ -12,26 +12,22 @@ class TestPreprocessing(unittest.TestCase):
         self.output_dir = Path("tests/verification_outputs")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.fs = 400
-        self.duration = 10
-        self.t = np.linspace(0, self.duration, int(self.fs * self.duration))
-        self.signal = np.sin(2 * np.pi * 5 * self.t) + 0.5 * np.sin(2 * np.pi * 0.5 * self.t) + np.random.normal(0, 0.1, len(self.t))
-        self.signal = np.repeat(self.signal[:, np.newaxis], 12, axis=1)
+        self.signal = np.random.normal(0, 1, (self.fs * 10, 12))
 
     def test_baseline_removal(self):
-        corrected = remove_baseline(self.signal, self.fs, 'moving_average')
-        self.assertEqual(corrected.shape, self.signal.shape)
+        filtered = remove_baseline(self.signal, self.fs, 'bandpass', low_cut_hz=0.5, high_cut_hz=45.0, order=4)
+        self.assertEqual(filtered.shape, self.signal.shape, "Baseline removal changed shape")
+
         plt.figure(figsize=(10, 4))
-        plt.plot(self.t, self.signal[:, 0], label='Raw')
-        plt.plot(self.t, corrected[:, 0], label='Corrected')
+        plt.plot(self.signal[:, 0], label="Original")
+        plt.plot(filtered[:, 0], label="Filtered")
         plt.legend()
-        plt.title('Baseline Removal Test')
-        plt.grid(True)
-        plt.savefig(self.output_dir / "baseline_test.png")
+        plt.savefig(self.output_dir / "baseline_sample.png")
         plt.close()
 
     def test_resample(self):
-        resampled, _ = resample_ecg(self.signal, self.fs, 500)
-        self.assertGreater(resampled.shape[0], self.signal.shape[0])
+        resampled_up, _ = resample_ecg(self.signal, self.fs, 500)
+        self.assertGreater(resampled_up.shape[0], self.signal.shape[0])
         resampled_down, _ = resample_ecg(self.signal, self.fs, 100)
         self.assertLess(resampled_down.shape[0], self.signal.shape[0])
 

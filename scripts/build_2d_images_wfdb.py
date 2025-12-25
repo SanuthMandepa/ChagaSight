@@ -14,7 +14,8 @@ Handles PTB-XL subfolders.
 Parallelized for speed.
 
 Usage:
-python -m scripts.build_2d_images_wfdb --subset 0.1
+python -m scripts.build_2d_images_wfdb --subset 0.1 --dataset ptbxl  # Run only PTB-XL
+python -m scripts.build_2d_images_wfdb --subset 1.0                # All datasets
 
 Notes:
 - Parallel with multiprocessing for speed.
@@ -24,7 +25,8 @@ Notes:
 - Depadding added for SaMi-Trop/CODE-15% short signals.
 - Signal shape forced to (T, 12) to avoid index errors.
 - Warnings suppressed for clean output.
-- PTB-XL handling: No depadding (full 5000 samples at 500 Hz), check fs == 500 to skip unnecessary resample.
+- PTB-XL handling: Prefer _hr only (skip _lr to avoid duplicates), no depadding (full 5000 samples at 500 Hz), check fs == 500 to skip unnecessary resample.
+- Saving: Numeric ID without suffix (e.g., 1.npy, 1_img.npy) for consistency.
 """
 
 import os
@@ -50,13 +52,13 @@ from src.preprocessing.normalization import normalize_dataset
 from src.preprocessing.image_embedding import ecg_to_contour_image
 
 # Configuration
-DATASETS = ["ptbxl", "sami_trop", "code15"]  # Full run
+ALL_DATASETS = ["ptbxl", "sami_trop", "code15"]
 WFDB_BASE = Path("data/official_wfdb")
 IMG_BASE = Path("data/processed/2d_images")
 FM_BASE = Path("data/processed/1d_signals_100hz")  # For 1D FM
 TARGET_WIDTH = 2048
 CLIP_RANGE = (-3.0, 3.0)
-N_JOBS = 6  # Adjust for your i7 (6–8 cores)
+N_JOBS = os.cpu_count() - 1  # Leave one core free
 
 # Dataset-specific configs (aligned with papers and old scripts)
 BASELINE_CONFIG = {
@@ -65,10 +67,32 @@ BASELINE_CONFIG = {
     "code15": {"method": None}  # No baseline, already filtered
 }
 
-DEPADDING_DATASETS = ["ptbxl","sami_trop", "code15"]  # Depad for these
+DEPADDING_DATASETS = ["sami_trop", "code15"]  # Depad for these (not PTB-XL)
 TARGET_DURATION_SEC = 10.0  # Standard 10s
 TARGET_SAMPLES_500 = int(TARGET_DURATION_SEC * 500)
 TARGET_SAMPLES_100 = int(TARGET_DURATION_SEC * 100)
+
+def find_wfdb_records(base_dir: Path, dataset: str) -> list:
+    """Find all WFDB record paths (relative, handles subfolders).
+    
+    For PTB-XL: Only include _hr files to avoid duplicates.
+    """
+    paths = []
+    for root, _, files in os.walk(base_dir):
+        for f in files:
+            if f.endswith('.hea'):
+                rel_path = Path(root) / f.replace('.hea', '')
+                if dataset == "ptbxl" and not rel_path.name.endswith('_hr'):
+                    continue  # Skip _lr for PTB-XL
+                paths.append(rel_path)
+    return paths
+
+def remove_zero_padding(signal, threshold=1e-6):
+    """Remove leading/trailing zero-padding."""
+    non_zero = np.any(np.abs(signal) > threshold, axis=1)
+    start = np.argmax(non_zero)
+    end = len(non_zero) - np.argmax(non_zero[::-1])
+    return signal[start:end]
 
 def process_record(args):
     ds, rec_path = args
@@ -82,10 +106,7 @@ def process_record(args):
 
         # Depadding for SaMi-Trop/CODE-15%
         if ds in DEPADDING_DATASETS:
-            non_zero = np.any(np.abs(signal) > 1e-6, axis=1)
-            start = np.argmax(non_zero)
-            end = len(non_zero) - np.argmax(non_zero[::-1])
-            signal = signal[start:end]
+            signal = remove_zero_padding(signal)
         
         # Dataset-specific baseline removal
         method = BASELINE_CONFIG[ds]["method"]
@@ -111,10 +132,10 @@ def process_record(args):
             signal_100 = signal
         signal_100 = pad_or_trim(signal_100, TARGET_SAMPLES_100)
         
-        # Save
-        rec_id = rec_path.name
+        # Save with numeric ID (1.npy, 1_img.npy)
+        rec_id = int(rec_path.name.split('_')[0])
         np.save(IMG_BASE / ds / f"{rec_id}_img.npy", img.astype(np.float32))
-        np.save(FM_BASE / ds / f"{rec_id}_fm.npy", signal_100.astype(np.float32))
+        np.save(FM_BASE / ds / f"{rec_id}.npy", signal_100.astype(np.float32))
         
         return rec_id, None  # Success
 
@@ -128,11 +149,7 @@ def build_images_for_dataset(ds, subset):
     out_img_dir.mkdir(parents=True, exist_ok=True)
     out_fm_dir.mkdir(parents=True, exist_ok=True)
     
-    record_paths = []
-    for root, _, files in os.walk(wfdb_dir):
-        for f in files:
-            if f.endswith('.hea'):
-                record_paths.append(Path(root) / f.replace('.hea', ''))
+    record_paths = find_wfdb_records(wfdb_dir, ds)
     
     if subset < 1.0:
         record_paths = random.sample(record_paths, int(len(record_paths) * subset))
@@ -141,12 +158,12 @@ def build_images_for_dataset(ds, subset):
     
     args_list = [(ds, rp) for rp in record_paths]
     
+    with Pool(N_JOBS) as p:
+        results = list(tqdm(p.imap(process_record, args_list), total=len(record_paths), desc="Generating images/FM"))
+    
     processed = 0
     failed = 0
     errors = []
-    
-    with Pool(N_JOBS) as p:
-        results = list(tqdm(p.imap(process_record, args_list), total=len(record_paths), desc="Generating images/FM"))
     
     for rec_id, err in results:
         if err is None:
@@ -165,7 +182,9 @@ def build_images_for_dataset(ds, subset):
     
     return processed, failed
 
-def main(subset):
+def main(subset, dataset=None):
+    datasets = [dataset] if dataset else ALL_DATASETS
+    
     print("Starting processing...")
     
     print("\n" + "=" * 70)
@@ -178,7 +197,7 @@ def main(subset):
     total_processed = 0
     total_failed = 0
     
-    for ds in DATASETS:
+    for ds in datasets:
         proc, fail = build_images_for_dataset(ds, subset)
         total_processed += proc
         total_failed += fail
@@ -197,5 +216,6 @@ def main(subset):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build 2D images and FM signals from WFDB")
     parser.add_argument("--subset", type=float, default=1.0, help="Fraction to process (0-1)")
+    parser.add_argument("--dataset", type=str, default=None, choices=ALL_DATASETS, help="Run only specific dataset (e.g., ptbxl)")
     args = parser.parse_args()
-    main(args.subset)
+    main(args.subset, args.dataset)
