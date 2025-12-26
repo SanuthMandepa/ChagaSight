@@ -1,0 +1,5 @@
+{
+  "test_auc": 0.9193548387096774,
+  "num_test_samples": 64,
+  "evaluation_time_sec": 1.074887752532959
+}

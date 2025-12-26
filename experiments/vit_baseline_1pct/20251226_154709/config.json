@@ -1,0 +1,38 @@
+{
+  "experiment_name": "vit_baseline_1pct",
+  "run_id": "20251226_154709",
+  "seed": 42,
+  "datasets": [
+    "ptbxl",
+    "sami_trop",
+    "code15"
+  ],
+  "subset_frac": 0.01,
+  "train/val/test_sizes": {
+    "train": 505,
+    "val": 63,
+    "test": 64
+  },
+  "batch_size": 16,
+  "epochs": 5,
+  "learning_rate": 0.0003,
+  "weight_decay": 0.05,
+  "optimizer": "AdamW",
+  "scheduler": "CosineAnnealingLR",
+  "amp": true,
+  "input_shape": [
+    3,
+    24,
+    2048
+  ],
+  "vit": {
+    "patch_size": 16,
+    "embed_dim": 768,
+    "depth": 12,
+    "heads": 12,
+    "mlp_ratio": 4.0,
+    "dropout": 0.1
+  },
+  "gpu_name": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "vram_gb": 6.441926656
+}
