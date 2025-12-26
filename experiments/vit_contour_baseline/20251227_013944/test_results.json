@@ -1,0 +1,13 @@
+{
+  "global_metrics": {
+    "test_auc": 0.8790322580645161,
+    "test_auprc": 0.16233766233766234,
+    "num_test_samples": 64,
+    "evaluation_time_sec": 17.103756427764893
+  },
+  "subgroup_auroc": {
+    "code15": 0.7906976744186046
+  },
+  "model_architecture": "ViT-Rectangular-Patch-8x16",
+  "normalization": "Zero-Centered-127.5"
+}
