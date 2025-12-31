@@ -1,0 +1,43 @@
+{
+  "experiment_name": "vit_contour_baseline",
+  "run_id": "20251227_104828",
+  "seed": 42,
+  "datasets": [
+    "ptbxl",
+    "sami_trop",
+    "code15"
+  ],
+  "subset_frac": 0.1,
+  "train/val/test_sizes": {
+    "train": 5058,
+    "val": 632,
+    "test": 633
+  },
+  "batch_size": 16,
+  "accumulation_steps": 2,
+  "effective_batch_size": 32,
+  "epochs": 20,
+  "learning_rate": 0.0003,
+  "weight_decay": 0.05,
+  "optimizer": "AdamW",
+  "scheduler": "CosineAnnealingLR",
+  "amp": true,
+  "input_shape": [
+    3,
+    24,
+    2048
+  ],
+  "vit": {
+    "variant": "ViT-Small",
+    "patch_h": 8,
+    "patch_w": 16,
+    "embed_dim": 384,
+    "depth": 12,
+    "heads": 6,
+    "mlp_ratio": 4.0,
+    "dropout": 0.1,
+    "num_parameters": 21590785
+  },
+  "gpu_name": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "vram_gb": 6.44
+}

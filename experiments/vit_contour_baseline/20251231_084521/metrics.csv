@@ -1,0 +1,2 @@
+epoch,train_loss,val_auc,val_auprc,val_acc,val_f1,challenge_score,epoch_time_sec,lr
+1,0.511395,0.45082,0.042179,0.968254,0.0,0.0,18.8,0.0
