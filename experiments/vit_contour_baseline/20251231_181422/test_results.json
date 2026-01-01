@@ -1,0 +1,33 @@
+{
+  "global_metrics": {
+    "test_auc": 0.5,
+    "test_auprc": 0.038747430017396806,
+    "test_accuracy": 0.038747430017396806,
+    "test_f1": 0.0746041412911084,
+    "test_precision": 0.038747430017396806,
+    "test_recall": 1.0,
+    "num_test_samples": 6323,
+    "inference_time_sec": 117.6,
+    "challenge_score_top5pct": 0.044897959183673466
+  },
+  "subgroup_auroc": {
+    "ptbxl": null,
+    "code15": 0.5,
+    "sami_trop": null
+  },
+  "model": {
+    "architecture": "ViT-Small",
+    "patch_size": "8x16 (rectangular)",
+    "embed_dim": 384,
+    "depth": 12,
+    "heads": 6,
+    "normalization": "Zero-centered [-1, 1] from uint8",
+    "total_parameters": 38224897
+  },
+  "training_details": {
+    "effective_batch_size": 32,
+    "mixed_precision": true,
+    "gradient_accumulation": 2
+  },
+  "date_completed": "2025-12-31 21:57:22"
+}
