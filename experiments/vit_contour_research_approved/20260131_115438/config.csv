@@ -1,0 +1,5 @@
+seed,42
+device,cuda
+data_dir,d:\IIT\L6\FYP\ChagaSight\data\processed
+exp_dir,d:\IIT\L6\FYP\ChagaSight\experiments\vit_contour_research_approved\20260131_115438
+official_metrics,True
