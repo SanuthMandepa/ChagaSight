@@ -1,0 +1,6 @@
+Metric,Test
+Challenge Score,0.1686
+AUC,0.7006
+AUPRC,0.0617
+F1@0.5,0.057
+Top5% Recall,9.0%
