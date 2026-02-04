@@ -1,0 +1,11 @@
+{
+  "python.defaultInterpreterPath": ".venv\\Scripts\\python.exe",
+  "python.analysis.extraPaths": [
+    "src/preprocessing",
+    "external/official_2025"
+  ],
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.useImportHeuristic": true,
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false // Use Pylance only
+}
