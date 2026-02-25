@@ -1,2 +1,0 @@
-test_auc,test_auprc,test_f1,test_challenge_score,test_size,true_positives,predicted_positives
-0.29508196721311475,0.049791144527986636,0.08955223880597014,0.0,64,3,64
