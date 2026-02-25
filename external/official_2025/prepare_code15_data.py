@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # Load libraries.
 import argparse
 import h5py
