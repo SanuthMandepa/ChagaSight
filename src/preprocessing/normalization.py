@@ -1,48 +1,45 @@
-"""Normalization utilities for ECG signals."""
+# normalization.py
+# Per-lead normalization. Input shape: (L, T)
 
+from __future__ import annotations
+
+from typing import Optional
 import numpy as np
 
 
-def normalize_per_lead(signal, method="zscore", clip_std=3.0):
-    """Normalize each lead independently.
+def normalize_per_lead(
+    signal: np.ndarray,
+    method: str = "zscore",
+    clip_std: Optional[float] = 3.0,
+    eps: float = 1e-8,
+) -> np.ndarray:
+    signal = np.asarray(signal)
+    if signal.ndim != 2:
+        raise ValueError(f"signal must be 2D (L,T), got shape {signal.shape}")
 
-    Args:
-        signal: (num_leads, num_samples) ECG signal
-        method: 'zscore' or 'minmax'
-        clip_std: For zscore, optional clipping to [-clip_std, clip_std]
+    x = signal.astype(np.float32, copy=False)
+    out = np.zeros_like(x, dtype=np.float32)
 
-    Returns:
-        Normalized signal as float32
-    """
-    normalized = np.zeros_like(signal, dtype=np.float32)
-
-    for lead_idx in range(signal.shape[0]):
-        lead_signal = signal[lead_idx].astype(np.float32)
-
+    for i in range(x.shape[0]):
+        lead = x[i]
         if method == "zscore":
-            mean = np.mean(lead_signal)
-            std = np.std(lead_signal)
-
-            if std < 1e-6:  # Avoid division by zero
-                normalized[lead_idx] = 0.0
+            mu = float(np.mean(lead))
+            sd = float(np.std(lead))
+            if sd < 1e-6:
+                out[i] = 0.0
             else:
-                normalized[lead_idx] = (lead_signal - mean) / std
-
+                y = (lead - mu) / (sd + eps)
                 if clip_std is not None:
-                    normalized[lead_idx] = np.clip(
-                        normalized[lead_idx], -clip_std, clip_std
-                    )
-
+                    y = np.clip(y, -float(clip_std), float(clip_std))
+                out[i] = y.astype(np.float32, copy=False)
         elif method == "minmax":
-            min_val = np.min(lead_signal)
-            max_val = np.max(lead_signal)
-
-            if max_val - min_val < 1e-6:
-                normalized[lead_idx] = 0.0
+            mn = float(np.min(lead))
+            mx = float(np.max(lead))
+            if (mx - mn) < 1e-6:
+                out[i] = 0.0
             else:
-                normalized[lead_idx] = (lead_signal - min_val) / (max_val - min_val)
-
+                out[i] = ((lead - mn) / (mx - mn)).astype(np.float32, copy=False)
         else:
-            raise ValueError(f"Unknown method: {method}")
+            raise ValueError(f"Unknown normalization method: {method}")
 
-    return normalized
+    return out

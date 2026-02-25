@@ -1,56 +1,53 @@
-"""Create stratified 5-fold cross-validation splits (corrected)."""
+# create_splits.py
+# Create 5-fold splits stratified by (dataset + hard label)
 
+from __future__ import annotations
+
+import argparse
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 
 
-def create_splits() -> pd.DataFrame:
-    """Create 5-fold splits stratified by (dataset, label_binary)."""
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--metadata_csv", type=str, default="data/processed/metadata/all_data.csv")
+    p.add_argument("--out_dir", type=str, default="data/processed/splits")
+    p.add_argument("--n_splits", type=int, default=5)
+    p.add_argument("--seed", type=int, default=42)
+    args = p.parse_args()
 
-    metadata_path = Path("data/processed/metadata/all_data.csv")
-    df = pd.read_csv(metadata_path)
+    df = pd.read_csv(args.metadata_csv)
+    if "label_hard" not in df.columns:
+        raise ValueError("Expected label_hard column in metadata CSV.")
+    if "dataset" not in df.columns:
+        raise ValueError("Expected dataset column in metadata CSV.")
 
-    print("=" * 60)
-    print("CREATING 5-FOLD SPLITS")
-    print("=" * 60)
-    print(f"\nTotal samples: {len(df)}")
-    print(
-        f"Positive samples: {df['label'].sum()} "
-        f"({df['label'].mean() * 100:.2f}%)"
-    )
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Binary label for stratification
-    df["label_binary"] = (df["label"] > 0.5).astype(int)
+    strat = (df["dataset"].astype(str) + "_" + df["label_hard"].astype(int).astype(str)).values
 
-    # Composite stratification key: dataset + label
-    df["strat_key"] = df["dataset"] + "_" + df["label_binary"].astype(str)
+    skf = StratifiedKFold(n_splits=args.n_splits, shuffle=True, random_state=args.seed)
 
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-
+    df = df.reset_index(drop=True)
     df["fold"] = -1
 
-    for fold_idx, (_, val_idx) in enumerate(skf.split(df, df["strat_key"])):
-        df.loc[val_idx, "fold"] = fold_idx
+    for fold, (_, val_idx) in enumerate(skf.split(np.zeros(len(df)), strat)):
+        df.loc[val_idx, "fold"] = fold
 
-    print("\nSplit verification:")
-    for fold in range(5):
-        fold_df = df[df["fold"] == fold]
-        pos = fold_df["label"].sum()
-        prev = fold_df["label"].mean() * 100
-        print(
-            f"  Fold {fold}: {len(fold_df)} samples, "
-            f"{pos} positive ({prev:.2f}%)"
-        )
-        print(f"    Datasets: {fold_df['dataset'].value_counts().to_dict()}")
+    df.to_csv(out_dir / "all_data_with_folds.csv", index=False)
 
-    output_path = Path("data/processed/metadata/all_data_5fold.csv")
-    df.to_csv(output_path, index=False)
+    for fold in range(args.n_splits):
+        train_df = df[df["fold"] != fold]
+        val_df = df[df["fold"] == fold]
+        train_df.to_csv(out_dir / f"train_fold{fold}.csv", index=False)
+        val_df.to_csv(out_dir / f"val_fold{fold}.csv", index=False)
 
-    print(f"\n✓ Saved 5-fold splits to: {output_path}")
-    return df
+    print("Splits written to:", out_dir)
 
 
 if __name__ == "__main__":
-    create_splits()
+    main()

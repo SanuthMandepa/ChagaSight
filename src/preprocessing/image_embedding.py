@@ -1,64 +1,101 @@
-"""2D Image embedding for ECG signals (all bugs fixed)."""
+# image_embedding.py
+# Build 2D 3-channel "ECG image" tensors from 12-lead ECG.
+# Output: (3, 24, 2048) uint8.
+#
+# Notes:
+# - Input expected to be normalized already (typically z-score, clipped).
+# - Input shape: (12, T) at 500 Hz, T ~ 5000 after pad/trim to 10 seconds.
+# - We crop/choose exactly 2048 samples (≈4.096 sec at 500 Hz) for the 2D embedding.
 
+from __future__ import annotations
+
+from typing import Optional, Sequence
 import numpy as np
-from scipy.interpolate import interp1d
 
 
-def build_2d_image(signal, target_height=24, target_width=2048):
-    """Build 2D image from ECG signal using RA/LA/LL contour-like grouping.
+STANDARD_12 = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 
-    Args:
-        signal: (12, num_samples) Z-score normalized signal
-                Expected range: roughly [-3, 3] after clipping
-        target_height: Image height (24 = 8 rows per group × 3 groups)
-        target_width: Image width (2048)
 
-    Returns:
-        img: (3, 24, 2048) uint8 image in [0, 255]
+def _to_uint8_from_clipped(x: np.ndarray, clip: float = 3.0) -> np.ndarray:
+    x = np.asarray(x, dtype=np.float32)
+    x = np.clip(x, -clip, clip)
+    x = (x + clip) / (2.0 * clip)  # [0,1]
+    x = (255.0 * x).round()
+    return x.astype(np.uint8)
+
+
+def _stack_leads_to_height24(leads12: np.ndarray) -> np.ndarray:
     """
-    num_leads, num_samples = signal.shape
+    leads12: (12, W) float
+    Returns: (24, W) float by duplicating each lead into 2 rows.
+    """
+    if leads12.shape[0] != 12:
+        raise ValueError(f"Expected 12 leads, got {leads12.shape[0]}")
+    W = leads12.shape[1]
+    out = np.zeros((24, W), dtype=np.float32)
+    for i in range(12):
+        out[2 * i + 0] = leads12[i]
+        out[2 * i + 1] = leads12[i]
+    return out
 
-    # Lead groups (roughly RA/LA/LL-related):
-    #   Group 0: I, II, III
-    #   Group 1: aVR, aVL, aVF
-    #   Group 2: V1–V6
-    lead_groups = [
-        [0, 1, 2],            # I, II, III
-        [3, 4, 5],            # aVR, aVL, aVF
-        [6, 7, 8, 9, 10, 11], # V1–V6
-    ]
 
-    img = np.zeros((3, target_height, target_width), dtype=np.float32)
+def _compute_wct_variant(signals: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    signals: (12, W) in STANDARD_12 order.
+    Returns 3 variants (each 12xW):
+      ch0: original
+      ch1: WCT-adjusted precordials (V1-V6) by adding WCT=(I+II)/3
+      ch2: common-mode removed by subtracting WCT from all leads
+    """
+    s = signals.astype(np.float32, copy=False)
 
-    # Interpolate to fixed width
-    if num_samples != target_width:
-        x_old = np.linspace(0, 1, num_samples)
-        x_new = np.linspace(0, 1, target_width)
-        signal_interp = np.zeros((num_leads, target_width), dtype=np.float32)
-        for lead_idx in range(num_leads):
-            f = interp1d(x_old, signal[lead_idx], kind="linear")
-            signal_interp[lead_idx] = f(x_new)
-        signal = signal_interp
+    lead_I = s[0]
+    lead_II = s[1]
+    wct = (lead_I + lead_II) / 3.0  # simple approximation from limb leads
 
-    rows_per_group = target_height // 3  # 24 / 3 = 8
+    ch0 = s
 
-    # Fill each channel with its group of leads, tiled over rows
-    for channel_idx, lead_group in enumerate(lead_groups):
-        base_row = channel_idx * rows_per_group
-        rows_per_lead = max(1, rows_per_group // len(lead_group))
+    ch1 = s.copy()
+    # Add WCT to V1..V6 (indices 6..11) to approximate electrode potentials
+    ch1[6:12] = ch1[6:12] + wct
 
-        for i, lead_idx in enumerate(lead_group):
-            if lead_idx >= num_leads:
-                continue
+    ch2 = s - wct  # remove common mode-ish component
 
-            start_row = base_row + i * rows_per_lead
-            end_row = min(base_row + rows_per_group, start_row + rows_per_lead)
+    return ch0, ch1, ch2
 
-            img[channel_idx, start_row:end_row, :] = signal[lead_idx, :]
 
-    # Clip to [-3, 3] then scale to [0, 255]
-    img = np.clip(img, -3.0, 3.0)
-    img = (img + 3.0) / 6.0 * 255.0
+def build_2d_image(
+    signal_12lead_500hz: np.ndarray,
+    target_width: int = 2048,
+    random_crop: bool = False,
+    rng: Optional[np.random.Generator] = None,
+) -> np.ndarray:
+    """
+    Input: (12, T) float32, normalized.
+    Output: (3, 24, 2048) uint8.
+    """
+    x = np.asarray(signal_12lead_500hz, dtype=np.float32)
+    if x.ndim != 2 or x.shape[0] != 12:
+        raise ValueError(f"Expected shape (12,T), got {x.shape}")
 
-    img = np.clip(img, 0, 255).astype(np.uint8)
-    return img
+    T = x.shape[1]
+    if T < target_width:
+        raise ValueError(f"Signal too short for target_width={target_width}: T={T}")
+
+    if random_crop:
+        if rng is None:
+            rng = np.random.default_rng()
+        start = int(rng.integers(0, T - target_width + 1))
+    else:
+        start = (T - target_width) // 2
+
+    crop = x[:, start : start + target_width]  # (12, 2048)
+
+    ch0, ch1, ch2 = _compute_wct_variant(crop)
+
+    img0 = _to_uint8_from_clipped(_stack_leads_to_height24(ch0))
+    img1 = _to_uint8_from_clipped(_stack_leads_to_height24(ch1))
+    img2 = _to_uint8_from_clipped(_stack_leads_to_height24(ch2))
+
+    out = np.stack([img0, img1, img2], axis=0)  # (3,24,2048)
+    return out.astype(np.uint8, copy=False)

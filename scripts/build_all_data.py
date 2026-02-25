@@ -1,372 +1,417 @@
-"""Master script to build all processed data (all bugs fixed).
+# scripts/build_all_data.py
+# End-to-end preprocessing for PTB-XL, SaMi-Trop, CODE-15 in WFDB format.
+# Produces:
+#   - 2D images: (3,24,2048) uint8 as .npy
+#   - 1D FM signals: (12,1000) float32 as .npy
+#   - metadata CSV(s) with label_hard + label_soft and binary sex (1=male, 0=female)
 
-This script:
-  1. Loads raw WFDB files for PTB-XL, SaMi-Trop, and CODE-15%.
-  2. Applies dataset-specific baseline removal.
-  3. Depads SaMi-Trop and CODE-15% where necessary.
-  4. Pads/trims to 10 seconds at original sampling rate.
-  5. Generates 2D contour images: (3, 24, 2048) uint8.
-  6. Generates 1D signals for FM: (12, 1000) float32 at 100 Hz.
-  7. Saves per-dataset and combined metadata CSVs.
-"""
+from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
+from typing import Optional, Dict, Any, List
 
 import numpy as np
 import pandas as pd
 import wfdb
 from tqdm import tqdm
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# ---------------------------------------------------------------------
+# Add <project_root>/src to sys.path so we can import src.preprocessing.*
+# ---------------------------------------------------------------------
+THIS_FILE = Path(__file__).resolve()
+PROJECT_ROOT = THIS_FILE.parent.parent
+SRC_ROOT = PROJECT_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
-from src.preprocessing.baseline_removal import remove_baseline
+from src.preprocessing.baseline_removal import BaselineConfig, remove_baseline
 from src.preprocessing.resample import resample_signal, pad_or_trim
 from src.preprocessing.normalization import normalize_per_lead
-from src.preprocessing.image_embedding import build_2d_image
+from src.preprocessing.image_embedding import build_2d_image, STANDARD_12
+from src.preprocessing.soft_labels import hard_to_soft_label
 
 
-# Dataset-specific baseline configuration (corrected)
-BASELINE_CONFIG = {
-    "ptbxl": {
-        "method": "bandpass",
-        "low_cut_hz": 0.5,
-        "high_cut_hz": 40.0,  # Fixed from 45.0
-        "order": 4,
-    },
-    "sami_trop": {
-        "method": "highpass",  # Fixed from moving_average
-        "cutoff_hz": 0.5,
-        "order": 3,
-    },
-    "code15": {
-        "method": "bandpass",  # Fixed from None
-        "low_cut_hz": 0.5,
-        "high_cut_hz": 40.0,
-        "order": 4,
-    },
-}
+# -------------------- helpers for sex -------------------- #
+
+def _normalize_sex_value(raw: Any) -> Optional[int]:
+    """
+    Normalize various sex encodings to 1/0:
+      1 = male, 0 = female, None = unknown/missing.
+    Accepts: bool, int, float, str.
+    """
+    if raw is None or (isinstance(raw, float) and np.isnan(raw)):
+        return None
+
+    # Booleans directly: True -> 1, False -> 0
+    if isinstance(raw, bool):
+        return 1 if raw else 0
+
+    # Numeric types
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        if int(raw) == 1:
+            return 1
+        if int(raw) == 0:
+            return 0
+
+    # Strings
+    s = str(raw).strip().lower()
+    if s in {"m", "male", "1", "true", "t", "yes", "y"}:
+        return 1
+    if s in {"f", "female", "0", "false", "f", "no", "n"}:
+        return 0
+
+    return None
+
+
+def _try_import_helper_code(helper_dir: Optional[str]):
+    """
+    If helper_dir is provided, it must be the DIRECTORY containing helper_code.py,
+    e.g. r"D:\\IIT\\L6\\FYP\\ChagaSight\\external\\official_2025".
+    """
+    if helper_dir:
+        sys.path.insert(0, helper_dir)
+    try:
+        import helper_code  # type: ignore
+        return helper_code
+    except Exception:
+        return None
+
+
+def _reorder_to_standard(
+    psignal: np.ndarray,  # (T, C)
+    sig_names: List[str],
+    helper_code_module,
+) -> np.ndarray:
+    """
+    Returns reordered signal in STANDARD_12 order as (12, T).
+    If helper_code is unavailable, we assume signal is already in the correct order.
+    """
+    if helper_code_module is None:
+        return psignal.T.astype(np.float32, copy=False)
+
+    try:
+        reordered = helper_code_module.reordersignal(psignal, sig_names, STANDARD_12)  # (T, 12)
+        return reordered.T.astype(np.float32, copy=False)
+    except Exception:
+        return psignal.T.astype(np.float32, copy=False)
+
+
+def _depad_trailing_zeros(signal: np.ndarray) -> np.ndarray:
+    """
+    CODE-15 and SaMi-Trop can have trailing zero padding. We remove it by finding
+    the last time index where any lead is non-zero.
+    """
+    if signal.ndim != 2:
+        raise ValueError("signal must be (L,T)")
+    non_zero_mask = np.any(signal != 0.0, axis=0)
+    if not np.any(non_zero_mask):
+        return signal
+    last = int(np.where(non_zero_mask)[0][-1])
+    return signal[:, : last + 1]
 
 
 def process_single_record(
     record_path: Path,
-    dataset_name: str,
-    output_dir_2d: Path,
-    output_dir_1d: Path,
-    label: float,
-    age=None,
-    sex=None,
-    record_id: str | None = None,
-):
-    """Process a single ECG record through the complete pipeline.
-
-    Returns:
-        dict with metadata or None if failed
-    """
-
+    dataset: str,
+    out_2d_dir: Path,
+    out_1d_dir: Path,
+    label_hard: int,
+    label_soft: float,
+    age: Optional[float],
+    sex: Optional[int],
+    helper_code_module=None,
+    baseline_cfg: Optional[BaselineConfig] = None,
+    make_random_crop: bool = False,
+    rng: Optional[np.random.Generator] = None,
+) -> Optional[Dict[str, Any]]:
     try:
-        # 1. Load WFDB record
         record = wfdb.rdrecord(str(record_path))
-        signal = record.p_signal.T  # (num_leads, num_samples)
-        original_fs = record.fs
+        psignal = record.p_signal  # (T, C)
+        sig_names = list(getattr(record, "sig_name", []))
 
-        # Ensure 12 leads
+        signal = _reorder_to_standard(psignal, sig_names, helper_code_module)  # (12, T)
+        fs = float(record.fs)
+
         if signal.shape[0] != 12:
-            print(f"Warning: {record_path} has {signal.shape[0]} leads, skipping")
             return None
 
-        # 2. Baseline removal (dataset-specific)
-        baseline_config = BASELINE_CONFIG[dataset_name]
-        signal = remove_baseline(signal, fs=original_fs, **baseline_config)
+        # Baseline removal
+        if baseline_cfg is None:
+            baseline_cfg = BaselineConfig(method="bandpass", lowcut_hz=0.5, highcut_hz=40.0, order=4)
+        signal = remove_baseline(signal, fs=fs, config=baseline_cfg)  # (12,T)
 
-        # 3. Depadding (for SaMi-Trop and CODE-15%)
-        if dataset_name in ["sami_trop", "code15"]:
-            non_zero_mask = np.any(signal != 0, axis=0)
-            if not np.all(non_zero_mask):
-                last_nonzero = np.where(non_zero_mask)[0][-1]
-                signal = signal[:, : last_nonzero + 1]
+        # Depad for datasets known to have trailing zeros
+        if dataset in ("samitrop", "code15"):
+            signal = _depad_trailing_zeros(signal)
 
-        # 4. Pad/trim to 10 seconds at original sampling rate
-        target_samples_orig = int(10 * original_fs)
-        signal = pad_or_trim(signal, target_samples_orig)
+        # Pad/trim to exactly 10 seconds at original fs
+        target_len_orig = int(round(10.0 * fs))
+        signal = pad_or_trim(signal, target_len_orig)  # (12, target_len_orig)
 
-        # ===== 2D PATHWAY =====
-        # 5a. Resample to 500 Hz
-        signal_500hz = resample_signal(signal, original_fs, 500)
+        # 2D branch: resample to 500 Hz, normalize (clip), build image
+        s500 = resample_signal(signal, original_fs=fs, target_fs=500.0)  # (12, ~5000)
+        s500 = normalize_per_lead(s500, method="zscore", clip_std=3.0)
+        img2d = build_2d_image(s500, target_width=2048, random_crop=make_random_crop, rng=rng)
 
-        # 6a. Normalize per-lead (z-score with clipping)
-        signal_500hz_norm = normalize_per_lead(
-            signal_500hz, method="zscore", clip_std=3.0
-        )
+        # 1D FM branch: resample to 100 Hz, normalize (no clip), pad/trim to 1000
+        s100 = resample_signal(signal, original_fs=fs, target_fs=100.0)  # (12, ~1000)
+        s100 = normalize_per_lead(s100, method="zscore", clip_std=None)
+        s100 = pad_or_trim(s100, 1000).astype(np.float32, copy=False)
 
-        # 7a. Build 2D image
-        img_2d = build_2d_image(
-            signal_500hz_norm, target_height=24, target_width=2048
-        )
+        # Save
+        rec_id = record_path.name  # works for "3108556" etc.
+        out_2d_dir.mkdir(parents=True, exist_ok=True)
+        out_1d_dir.mkdir(parents=True, exist_ok=True)
 
-        assert img_2d.dtype == np.uint8, f"Image must be uint8, got {img_2d.dtype}"
-        assert img_2d.shape == (
-            3,
-            24,
-            2048,
-        ), f"Image shape must be (3,24,2048), got {img_2d.shape}"
-
-        # 8a. Save 2D image
-        img_filename = f"{record_id}.npy" if record_id else f"{record_path.stem}.npy"
-        img_path = output_dir_2d / img_filename
-        np.save(img_path, img_2d)
-
-        # ===== 1D PATHWAY =====
-        # 5b. Resample to 100 Hz
-        signal_100hz = resample_signal(signal, original_fs, 100)
-
-        # 6b. Normalize per-lead (z-score, no clipping)
-        signal_100hz_norm = normalize_per_lead(
-            signal_100hz, method="zscore", clip_std=None
-        )
-
-        # 7b. Ensure exactly 1000 samples (10 s × 100 Hz)
-        signal_100hz_norm = pad_or_trim(signal_100hz_norm, 1000)
-
-        assert signal_100hz_norm.dtype == np.float32
-        assert signal_100hz_norm.shape == (12, 1000)
-
-        # 8b. Save 1D signal
-        sig_filename = img_filename
-        sig_path = output_dir_1d / sig_filename
-        np.save(sig_path, signal_100hz_norm)
+        img_path = out_2d_dir / f"{rec_id}.npy"
+        sig_path = out_1d_dir / f"{rec_id}.npy"
+        np.save(img_path, img2d)
+        np.save(sig_path, s100)
 
         return {
-            "id": record_id or record_path.stem,
-            "dataset": dataset_name,
-            "label": float(label),
-            "img_path": str(img_path),
-            "fm_path": str(sig_path),
+            "id": rec_id,
+            "dataset": dataset,
+            "label_hard": int(label_hard),
+            "label_soft": float(label_soft),
             "age": age,
             "sex": sex,
+            "wfdb_path": str(record_path),
+            "img_path": str(img_path),
+            "fm_path": str(sig_path),
         }
-
-    except Exception as e:  # noqa: BLE001
-        print(f"Error processing {record_path}: {e}")
+    except Exception:
         return None
 
 
-def process_ptbxl(ptbxl_dir: Path, output_dir_2d: Path, output_dir_1d: Path, subset: float = 1.0):
-    """Process PTB-XL dataset (all assumed Chagas-negative)."""
+def _resolve_code15_record_path(code15_dir: Path, exam_id: str) -> Path:
+    """
+    CODE-15 WFDB files may be flat under code15_dir (no wfdb/ subfolder).
+    """
+    flat = code15_dir / str(exam_id)
+    sub = code15_dir / "wfdb" / str(exam_id)
+    if flat.with_suffix(".hea").exists() or flat.exists():
+        return flat
+    if sub.with_suffix(".hea").exists() or sub.exists():
+        return sub
+    # default to flat (so failures are consistent and obvious)
+    return flat
 
-    print("\n" + "=" * 60)
-    print("PROCESSING PTB-XL")
-    print("=" * 60)
 
-    metadata_path = ptbxl_dir / "ptbxl_database.csv"
-    df = pd.read_csv(metadata_path)
+# -------------------- dataset-specific processing -------------------- #
 
-    df["chagas_label"] = 0
+def process_ptbxl(ptbxl_dir: Path, out_2d: Path, out_1d: Path,
+                  helper_code_module, subset: float, train_mode: bool):
+    meta_csv = ptbxl_dir / "ptbxl_database.csv"
+    if not meta_csv.exists():
+        meta_csv = ptbxl_dir / "ptbxldatabase.csv"
 
+    df = pd.read_csv(meta_csv)
     if subset < 1.0:
         df = df.sample(frac=subset, random_state=42)
 
-    print(f"Total records: {len(df)}")
-    print(f"Chagas positive: {df['chagas_label'].sum()}")
-
-    output_dir_2d.mkdir(parents=True, exist_ok=True)
-    output_dir_1d.mkdir(parents=True, exist_ok=True)
-
-    metadata_list: list[dict] = []
+    rng = np.random.default_rng(42)
+    out: List[Dict[str, Any]] = []
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="PTB-XL"):
-        record_path = ptbxl_dir / row["filename_hr"].replace(".hea", "")
+        fn = str(row.get("filename_hr", "")).replace(".hea", "")
+        record_path = ptbxl_dir / fn
 
-        metadata = process_single_record(
+        # Chagas hard label: PTB-XL is assumed negative (0)
+        label_hard = int(row.get("chagas", 0)) if "chagas" in row else 0
+        label_soft = float(label_hard)
+
+        age = row.get("age", None)
+        raw_sex = row.get("sex", None)
+        sex = _normalize_sex_value(raw_sex)
+
+        md = process_single_record(
             record_path=record_path,
-            dataset_name="ptbxl",
-            output_dir_2d=output_dir_2d,
-            output_dir_1d=output_dir_1d,
-            label=row["chagas_label"],
-            age=row.get("age", None),
-            sex=row.get("sex", None),
-            record_id=f"ptbxl_{row['ecg_id']}",
+            dataset="ptbxl",
+            out_2d_dir=out_2d,
+            out_1d_dir=out_1d,
+            label_hard=label_hard,
+            label_soft=label_soft,
+            age=age,
+            sex=sex,
+            helper_code_module=helper_code_module,
+            baseline_cfg=BaselineConfig(method="bandpass", lowcut_hz=0.5, highcut_hz=40.0, order=4),
+            make_random_crop=train_mode,
+            rng=rng,
         )
+        if md is not None:
+            out.append(md)
 
-        if metadata is not None:
-            metadata_list.append(metadata)
-
-    print(f"\nSuccessfully processed: {len(metadata_list)}/{len(df)}")
-    return metadata_list
+    return out
 
 
-def process_samitrop(
-    samitrop_dir: Path,
-    output_dir_2d: Path,
-    output_dir_1d: Path,
-    subset: float = 1.0,
-):
-    """Process SaMi-Trop dataset (all Chagas-positive in training)."""
-
-    print("\n" + "=" * 60)
-    print("PROCESSING SAMI-TROP")
-    print("=" * 60)
-
-    metadata_path = samitrop_dir / "exams.csv"
-    df = pd.read_csv(metadata_path)
-
+def process_samitrop(samitrop_dir: Path, out_2d: Path, out_1d: Path,
+                     helper_code_module, subset: float, train_mode: bool):
+    meta_csv = samitrop_dir / "exams.csv"
+    df = pd.read_csv(meta_csv)
     if subset < 1.0:
         df = df.sample(frac=subset, random_state=42)
 
-    print(f"Total records: {len(df)}")
-    print(f"Chagas positive: {df['chagas'].sum()}")
-
-    output_dir_2d.mkdir(parents=True, exist_ok=True)
-    output_dir_1d.mkdir(parents=True, exist_ok=True)
-
-    metadata_list: list[dict] = []
+    rng = np.random.default_rng(123)
+    out: List[Dict[str, Any]] = []
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="SaMi-Trop"):
-        record_path = samitrop_dir / "wfdb" / str(row["exam_id"])
+        exam_id = str(row["exam_id"])
+        # SaMi-Trop often stored under samitrop_dir/wfdb/<exam_id>
+        record_path = samitrop_dir / "wfdb" / exam_id
+        if not record_path.with_suffix(".hea").exists():
+            record_path = samitrop_dir / exam_id
 
-        metadata = process_single_record(
+        label_hard = int(row.get("chagas", 1))
+        label_soft = float(label_hard)  # keep hard for SaMi-Trop
+
+        age = row.get("age", None)
+        # Use is_male from exams.csv and convert to binary sex
+        raw_is_male = row.get("is_male", None)
+        sex = _normalize_sex_value(raw_is_male)
+
+        md = process_single_record(
             record_path=record_path,
-            dataset_name="sami_trop",
-            output_dir_2d=output_dir_2d,
-            output_dir_1d=output_dir_1d,
-            label=row["chagas"],
-            age=row.get("age", None),
-            sex=row.get("sex", None),
-            record_id=f"samitrop_{row['exam_id']}",
+            dataset="samitrop",
+            out_2d_dir=out_2d,
+            out_1d_dir=out_1d,
+            label_hard=label_hard,
+            label_soft=label_soft,
+            age=age,
+            sex=sex,
+            helper_code_module=helper_code_module,
+            baseline_cfg=BaselineConfig(method="bandpass", lowcut_hz=0.5, highcut_hz=40.0, order=4),
+            make_random_crop=train_mode,
+            rng=rng,
         )
+        if md is not None:
+            out.append(md)
 
-        if metadata is not None:
-            metadata_list.append(metadata)
-
-    print(f"\nSuccessfully processed: {len(metadata_list)}/{len(df)}")
-    return metadata_list
+    return out
 
 
-def process_code15(
-    code15_dir: Path,
-    output_dir_2d: Path,
-    output_dir_1d: Path,
-    subset: float = 1.0,
-):
-    """Process CODE-15% dataset (full 15% subset with Chagas labels)."""
+def process_code15(code15_dir: Path, out_2d: Path, out_1d: Path,
+                   helper_code_module, subset: float, train_mode: bool):
+    # Accept either filename
+    meta_csv = code15_dir / "code15_chagas_labels.csv"
+    if not meta_csv.exists():
+        meta_csv = code15_dir / "code15chagaslabels.csv"
 
-    print("\n" + "=" * 60)
-    print("PROCESSING CODE-15%")
-    print("=" * 60)
-
-    metadata_path = code15_dir / "code15_chagas_labels.csv"
-    df = pd.read_csv(metadata_path)
-
+    df = pd.read_csv(meta_csv)
     if subset < 1.0:
         df = df.sample(frac=subset, random_state=42)
 
-    print(f"Total records: {len(df)}")
-    print(f"Chagas positive: {df['chagas'].sum()}")
+    rng = np.random.default_rng(999)
+    out: List[Dict[str, Any]] = []
 
-    output_dir_2d.mkdir(parents=True, exist_ok=True)
-    output_dir_1d.mkdir(parents=True, exist_ok=True)
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="CODE-15"):
+        exam_id = str(row["exam_id"])
+        record_path = _resolve_code15_record_path(code15_dir, exam_id)
 
-    metadata_list: list[dict] = []
+        label_hard = int(row.get("chagas", 0))
+        label_soft = hard_to_soft_label(label_hard, pos_soft=0.8, neg_soft=0.2)
 
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="CODE-15%"):
-        record_path = code15_dir / "wfdb" / str(row["exam_id"])
+        age = row.get("age", None)
+        raw_sex = row.get("sex", None)
+        sex = _normalize_sex_value(raw_sex)
 
-        metadata = process_single_record(
+        md = process_single_record(
             record_path=record_path,
-            dataset_name="code15",
-            output_dir_2d=output_dir_2d,
-            output_dir_1d=output_dir_1d,
-            label=row["chagas"],
-            age=row.get("age", None),
-            sex=row.get("sex", None),
-            record_id=f"code15_{row['exam_id']}",
+            dataset="code15",
+            out_2d_dir=out_2d,
+            out_1d_dir=out_1d,
+            label_hard=label_hard,
+            label_soft=label_soft,
+            age=age,
+            sex=sex,
+            helper_code_module=helper_code_module,
+            baseline_cfg=BaselineConfig(method="bandpass", lowcut_hz=0.5, highcut_hz=40.0, order=4),
+            make_random_crop=train_mode,
+            rng=rng,
         )
+        if md is not None:
+            out.append(md)
 
-        if metadata is not None:
-            metadata_list.append(metadata)
-
-    print(f"\nSuccessfully processed: {len(metadata_list)}/{len(df)}")
-    return metadata_list
+    return out
 
 
-def main() -> None:
-    """Main preprocessing pipeline entry point."""
+# -------------------- main -------------------- #
 
-    project_root = Path(__file__).parent.parent
-    data_root = project_root / "data"
-
-    official_wfdb = data_root / "official_wfdb"
-    processed_root = data_root / "processed"
-
-    output_2d = processed_root / "2d_images"
-    output_1d = processed_root / "1d_signals_100hz"
-    metadata_dir = processed_root / "metadata"
-    metadata_dir.mkdir(parents=True, exist_ok=True)
-
-    all_metadata: list[dict] = []
-
-    # PTB-XL
-    if (official_wfdb / "ptbxl").exists():
-        ptbxl_metadata = process_ptbxl(
-            ptbxl_dir=official_wfdb / "ptbxl",
-            output_dir_2d=output_2d / "ptbxl",
-            output_dir_1d=output_1d / "ptbxl",
-            subset=1.0,
-        )
-        all_metadata.extend(ptbxl_metadata)
-        pd.DataFrame(ptbxl_metadata).to_csv(
-            metadata_dir / "ptbxl_metadata.csv", index=False
-        )
-
-    # SaMi-Trop
-    if (official_wfdb / "sami_trop").exists():
-        samitrop_metadata = process_samitrop(
-            samitrop_dir=official_wfdb / "sami_trop",
-            output_dir_2d=output_2d / "sami_trop",
-            output_dir_1d=output_1d / "sami_trop",
-            subset=1.0,
-        )
-        all_metadata.extend(samitrop_metadata)
-        pd.DataFrame(samitrop_metadata).to_csv(
-            metadata_dir / "sami_trop_metadata.csv", index=False
-        )
-
-    # CODE-15% (full, not re-balanced)
-    if (official_wfdb / "code15").exists():
-        code15_metadata = process_code15(
-            code15_dir=official_wfdb / "code15",
-            output_dir_2d=output_2d / "code15",
-            output_dir_1d=output_1d / "code15",
-            subset=1.0,
-        )
-        all_metadata.extend(code15_metadata)
-        pd.DataFrame(code15_metadata).to_csv(
-            metadata_dir / "code15_metadata.csv", index=False
-        )
-
-    all_df = pd.DataFrame(all_metadata)
-    all_df.to_csv(metadata_dir / "all_data.csv", index=False)
-
-    print("\n" + "=" * 60)
-    print("PREPROCESSING COMPLETE!")
-    print("=" * 60)
-    print(f"\nTotal samples: {len(all_df)}")
-    print(
-        f"Chagas positive: {all_df['label'].sum()} "
-        f"({all_df['label'].mean() * 100:.2f}%)"
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--official_wfdb_root", type=str, default="data/official_wfdb")
+    p.add_argument("--processed_root", type=str, default="data/processed")
+    p.add_argument("--subset", type=float, default=1.0)
+    p.add_argument("--train_mode", action="store_true", help="Enable random crop for 2D embedding")
+    p.add_argument(
+        "--helper_dir",
+        type=str,
+        default=r"D:\IIT\L6\FYP\ChagaSight\external\official_2025",
+        help="Directory containing helper_code.py",
     )
-    print("\nBy dataset:")
-    print(all_df["dataset"].value_counts())
+    args = p.parse_args()
 
-    print(f"\n2D images saved to: {output_2d}")
-    print(f"1D signals saved to: {output_1d}")
-    print(f"Metadata saved to: {metadata_dir}")
+    official = Path(args.official_wfdb_root)
+    processed = Path(args.processed_root)
 
-    img_size_kb = 3 * 24 * 2048 / 1024  # 3*24*2048 uint8
-    sig_size_kb = 12 * 1000 * 4 / 1024  # 12*1000 float32
-    total_storage_gb = len(all_df) * (img_size_kb + sig_size_kb) / 1024 / 1024
-    print(f"\nEstimated storage: {total_storage_gb:.2f} GB")
+    out_2d = processed / "2d_images"
+    out_1d = processed / "1d_signals_100hz"
+    meta_dir = processed / "metadata"
+    meta_dir.mkdir(parents=True, exist_ok=True)
+
+    helper_code_module = _try_import_helper_code(args.helper_dir)
+
+    all_md: List[Dict[str, Any]] = []
+
+    if (official / "ptbxl").exists():
+        md = process_ptbxl(
+            official / "ptbxl",
+            out_2d / "ptbxl",
+            out_1d / "ptbxl",
+            helper_code_module,
+            args.subset,
+            args.train_mode,
+        )
+        pd.DataFrame(md).to_csv(meta_dir / "ptbxl_metadata.csv", index=False)
+        all_md.extend(md)
+
+    if (official / "samitrop").exists():
+        md = process_samitrop(
+            official / "samitrop",
+            out_2d / "samitrop",
+            out_1d / "samitrop",
+            helper_code_module,
+            args.subset,
+            args.train_mode,
+        )
+        pd.DataFrame(md).to_csv(meta_dir / "samitrop_metadata.csv", index=False)
+        all_md.extend(md)
+
+    if (official / "code15").exists():
+        md = process_code15(
+            official / "code15",
+            out_2d / "code15",
+            out_1d / "code15",
+            helper_code_module,
+            args.subset,
+            args.train_mode,
+        )
+        pd.DataFrame(md).to_csv(meta_dir / "code15_metadata.csv", index=False)
+        all_md.extend(md)
+
+    all_df = pd.DataFrame(all_md)
+    all_df.to_csv(meta_dir / "all_data.csv", index=False)
+
+    print("Preprocessing complete.")
+    print(f"Total samples: {len(all_df)}")
+    if len(all_df) > 0:
+        print("By dataset:\n", all_df["dataset"].value_counts())
+        print("Hard positives:", int(all_df["label_hard"].sum()))
+        print("Mean soft label:", float(all_df["label_soft"].mean()))
+        if "sex" in all_df.columns:
+            print("Sex value counts (1=male,0=female,NaN=missing):")
+            print(all_df["sex"].value_counts(dropna=False))
 
 
 if __name__ == "__main__":
