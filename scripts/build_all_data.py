@@ -17,9 +17,6 @@ import pandas as pd
 import wfdb
 from tqdm import tqdm
 
-# ---------------------------------------------------------------------
-# Add <project_root>/src to sys.path so we can import src.preprocessing.*
-# ---------------------------------------------------------------------
 THIS_FILE = Path(__file__).resolve()
 PROJECT_ROOT = THIS_FILE.parent.parent
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -44,32 +41,25 @@ def _normalize_sex_value(raw: Any) -> Optional[int]:
     if raw is None or (isinstance(raw, float) and np.isnan(raw)):
         return None
 
-    # Booleans directly: True -> 1, False -> 0
     if isinstance(raw, bool):
         return 1 if raw else 0
 
-    # Numeric types
     if isinstance(raw, (int, float)) and not isinstance(raw, bool):
         if int(raw) == 1:
             return 1
         if int(raw) == 0:
             return 0
 
-    # Strings
     s = str(raw).strip().lower()
     if s in {"m", "male", "1", "true", "t", "yes", "y"}:
         return 1
-    if s in {"f", "female", "0", "false", "f", "no", "n"}:
+    if s in {"f", "female", "0", "false", "no", "n"}:
         return 0
 
     return None
 
 
 def _try_import_helper_code(helper_dir: Optional[str]):
-    """
-    If helper_dir is provided, it must be the DIRECTORY containing helper_code.py,
-    e.g. r"D:\\IIT\\L6\\FYP\\ChagaSight\\external\\official_2025".
-    """
     if helper_dir:
         sys.path.insert(0, helper_dir)
     try:
@@ -84,13 +74,8 @@ def _reorder_to_standard(
     sig_names: List[str],
     helper_code_module,
 ) -> np.ndarray:
-    """
-    Returns reordered signal in STANDARD_12 order as (12, T).
-    If helper_code is unavailable, we assume signal is already in the correct order.
-    """
     if helper_code_module is None:
         return psignal.T.astype(np.float32, copy=False)
-
     try:
         reordered = helper_code_module.reordersignal(psignal, sig_names, STANDARD_12)  # (T, 12)
         return reordered.T.astype(np.float32, copy=False)
@@ -99,10 +84,6 @@ def _reorder_to_standard(
 
 
 def _depad_trailing_zeros(signal: np.ndarray) -> np.ndarray:
-    """
-    CODE-15 and SaMi-Trop can have trailing zero padding. We remove it by finding
-    the last time index where any lead is non-zero.
-    """
     if signal.ndim != 2:
         raise ValueError("signal must be (L,T)")
     non_zero_mask = np.any(signal != 0.0, axis=0)
@@ -128,40 +109,34 @@ def process_single_record(
 ) -> Optional[Dict[str, Any]]:
     try:
         record = wfdb.rdrecord(str(record_path))
-        psignal = record.p_signal  # (T, C)
+        psignal = record.p_signal
         sig_names = list(getattr(record, "sig_name", []))
 
-        signal = _reorder_to_standard(psignal, sig_names, helper_code_module)  # (12, T)
+        signal = _reorder_to_standard(psignal, sig_names, helper_code_module)
         fs = float(record.fs)
 
         if signal.shape[0] != 12:
             return None
 
-        # Baseline removal
         if baseline_cfg is None:
             baseline_cfg = BaselineConfig(method="bandpass", lowcut_hz=0.5, highcut_hz=40.0, order=4)
-        signal = remove_baseline(signal, fs=fs, config=baseline_cfg)  # (12,T)
+        signal = remove_baseline(signal, fs=fs, config=baseline_cfg)
 
-        # Depad for datasets known to have trailing zeros
         if dataset in ("samitrop", "code15"):
             signal = _depad_trailing_zeros(signal)
 
-        # Pad/trim to exactly 10 seconds at original fs
         target_len_orig = int(round(10.0 * fs))
-        signal = pad_or_trim(signal, target_len_orig)  # (12, target_len_orig)
+        signal = pad_or_trim(signal, target_len_orig)
 
-        # 2D branch: resample to 500 Hz, normalize (clip), build image
-        s500 = resample_signal(signal, original_fs=fs, target_fs=500.0)  # (12, ~5000)
+        s500 = resample_signal(signal, original_fs=fs, target_fs=500.0)
         s500 = normalize_per_lead(s500, method="zscore", clip_std=3.0)
         img2d = build_2d_image(s500, target_width=2048, random_crop=make_random_crop, rng=rng)
 
-        # 1D FM branch: resample to 100 Hz, normalize (no clip), pad/trim to 1000
-        s100 = resample_signal(signal, original_fs=fs, target_fs=100.0)  # (12, ~1000)
+        s100 = resample_signal(signal, original_fs=fs, target_fs=100.0)
         s100 = normalize_per_lead(s100, method="zscore", clip_std=None)
         s100 = pad_or_trim(s100, 1000).astype(np.float32, copy=False)
 
-        # Save
-        rec_id = record_path.name  # works for "3108556" etc.
+        rec_id = record_path.name
         out_2d_dir.mkdir(parents=True, exist_ok=True)
         out_1d_dir.mkdir(parents=True, exist_ok=True)
 
@@ -186,16 +161,12 @@ def process_single_record(
 
 
 def _resolve_code15_record_path(code15_dir: Path, exam_id: str) -> Path:
-    """
-    CODE-15 WFDB files may be flat under code15_dir (no wfdb/ subfolder).
-    """
     flat = code15_dir / str(exam_id)
     sub = code15_dir / "wfdb" / str(exam_id)
     if flat.with_suffix(".hea").exists() or flat.exists():
         return flat
     if sub.with_suffix(".hea").exists() or sub.exists():
         return sub
-    # default to flat (so failures are consistent and obvious)
     return flat
 
 
@@ -218,13 +189,11 @@ def process_ptbxl(ptbxl_dir: Path, out_2d: Path, out_1d: Path,
         fn = str(row.get("filename_hr", "")).replace(".hea", "")
         record_path = ptbxl_dir / fn
 
-        # Chagas hard label: PTB-XL is assumed negative (0)
         label_hard = int(row.get("chagas", 0)) if "chagas" in row else 0
         label_soft = float(label_hard)
 
         age = row.get("age", None)
-        raw_sex = row.get("sex", None)
-        sex = _normalize_sex_value(raw_sex)
+        sex = _normalize_sex_value(row.get("sex", None))
 
         md = process_single_record(
             record_path=record_path,
@@ -258,18 +227,15 @@ def process_samitrop(samitrop_dir: Path, out_2d: Path, out_1d: Path,
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="SaMi-Trop"):
         exam_id = str(row["exam_id"])
-        # SaMi-Trop often stored under samitrop_dir/wfdb/<exam_id>
         record_path = samitrop_dir / "wfdb" / exam_id
         if not record_path.with_suffix(".hea").exists():
             record_path = samitrop_dir / exam_id
 
         label_hard = int(row.get("chagas", 1))
-        label_soft = float(label_hard)  # keep hard for SaMi-Trop
+        label_soft = float(label_hard)
 
         age = row.get("age", None)
-        # Use is_male from exams.csv and convert to binary sex
-        raw_is_male = row.get("is_male", None)
-        sex = _normalize_sex_value(raw_is_male)
+        sex = _normalize_sex_value(row.get("is_male", None))
 
         md = process_single_record(
             record_path=record_path,
@@ -293,19 +259,30 @@ def process_samitrop(samitrop_dir: Path, out_2d: Path, out_1d: Path,
 
 def process_code15(code15_dir: Path, out_2d: Path, out_1d: Path,
                    helper_code_module, subset: float, train_mode: bool):
-    # Accept either filename
-    meta_csv = code15_dir / "code15_chagas_labels.csv"
-    if not meta_csv.exists():
-        meta_csv = code15_dir / "code15chagaslabels.csv"
+    # labels
+    label_csv = code15_dir / "code15_chagas_labels.csv"
+    if not label_csv.exists():
+        label_csv = code15_dir / "code15chagaslabels.csv"
+    labels_df = pd.read_csv(label_csv)
 
-    df = pd.read_csv(meta_csv)
+    # exams with age + is_male
+    exams_csv = code15_dir / "exams.csv"
+    exams_df = pd.read_csv(exams_csv)
+
+    # Merge to get age and is_male into labels_df
+    merged = labels_df.merge(
+        exams_df[["exam_id", "age", "is_male"]],
+        on="exam_id",
+        how="left",
+    )
+
     if subset < 1.0:
-        df = df.sample(frac=subset, random_state=42)
+        merged = merged.sample(frac=subset, random_state=42)
 
     rng = np.random.default_rng(999)
     out: List[Dict[str, Any]] = []
 
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="CODE-15"):
+    for _, row in tqdm(merged.iterrows(), total=len(merged), desc="CODE-15"):
         exam_id = str(row["exam_id"])
         record_path = _resolve_code15_record_path(code15_dir, exam_id)
 
@@ -313,8 +290,7 @@ def process_code15(code15_dir: Path, out_2d: Path, out_1d: Path,
         label_soft = hard_to_soft_label(label_hard, pos_soft=0.8, neg_soft=0.2)
 
         age = row.get("age", None)
-        raw_sex = row.get("sex", None)
-        sex = _normalize_sex_value(raw_sex)
+        sex = _normalize_sex_value(row.get("is_male", None))
 
         md = process_single_record(
             record_path=record_path,
