@@ -1,14 +1,12 @@
-# src/models/vit_1d_fm.py
+# src/models/vit_1d_fm.py - FULLY FIXED VERSION
 """
 1D Vision Transformer Foundation Model
 
-Paper: Van Santvliet et al. (2025) - Winner (0.445)
+Paper: Van Santvliet et al. (2025)
 
-Features:
-- Processes 1D ECG signals (12, 1000)
-- Demographics modulation (age, sex)
-- AoL (Aggregation of Layers)
-- ST-MEM pretrained
+CRITICAL FIXES:
+1. Per-lead processing (previous fix)
+2. Use .contiguous() before .view() to avoid stride errors
 """
 
 import torch
@@ -18,11 +16,15 @@ from typing import Tuple
 
 class PatchEmbed1D(nn.Module):
     """
-    1D Patch Embedding for ECG signals.
+    FULLY FIXED 1D Patch Embedding for ECG signals.
     
     Input: (12, 1000) @ 100Hz
-    Patch size: 50 samples
+    Patch size: 50 samples  
     Result: 12 leads × 20 patches = 240 patches
+    
+    FIXES:
+    - Per-lead processing (not all leads at once)
+    - .contiguous() before .view() to avoid stride errors
     """
     
     def __init__(
@@ -44,9 +46,9 @@ class PatchEmbed1D(nn.Module):
         self.num_patches_per_lead = seq_len // patch_size  # 20
         self.num_patches = num_leads * self.num_patches_per_lead  # 240
         
-        # Conv1D projection
+        # Per-lead Conv1D projection
         self.proj = nn.Conv1d(
-            num_leads,
+            1,  # Process one lead at a time
             embed_dim,
             kernel_size=patch_size,
             stride=patch_size
@@ -54,7 +56,7 @@ class PatchEmbed1D(nn.Module):
         
         # Lead embeddings
         self.lead_embed = nn.Parameter(
-            torch.zeros(1, num_leads, embed_dim)
+            torch.zeros(1, num_leads, 1, embed_dim)
         )
         nn.init.trunc_normal_(self.lead_embed, std=0.02)
     
@@ -66,20 +68,24 @@ class PatchEmbed1D(nn.Module):
         Returns:
             patches: (B, 240, 768)
         """
-        # Project
-        x = self.proj(x)  # (B, 768, 20)
+        B, L, T = x.shape
         
-        # Reshape
-        B = x.shape[0]
-        x = x.view(B, self.embed_dim, self.num_leads, self.num_patches_per_lead)
-        x = x.permute(0, 2, 3, 1)  # (B, 12, 20, 768)
+        # Process each lead separately
+        x = x.view(B * L, 1, T)  # (B*12, 1, 1000)
+        
+        # Project patches
+        x = self.proj(x)  # (B*12, 768, 20)
+        
+        # Reshape back
+        x = x.view(B, L, self.embed_dim, self.num_patches_per_lead)  # (B, 12, 768, 20)
+        x = x.permute(0, 1, 3, 2)  # (B, 12, 20, 768)
         
         # Add lead embeddings
-        lead_emb = self.lead_embed.unsqueeze(2)  # (1, 12, 1, 768)
-        x = x + lead_emb
+        x = x + self.lead_embed  # (B, 12, 20, 768) + (1, 12, 1, 768)
         
-        # Flatten
-        x = x.view(B, self.num_patches, -1)  # (B, 240, 768)
+        # FIXED: Make contiguous before view
+        x = x.contiguous()  # Ensure tensor is contiguous
+        x = x.view(B, self.num_patches, self.embed_dim)  # (B, 240, 768)
         
         return x
 
@@ -87,8 +93,6 @@ class PatchEmbed1D(nn.Module):
 class DemographicsEncoder(nn.Module):
     """
     Demographics encoder: (age, sex) → (γ, β) modulation.
-    
-    Paper: Van Santvliet et al. (2025)
     """
     
     def __init__(self, embed_dim: int = 768, hidden_dim: int = 256):
@@ -96,7 +100,6 @@ class DemographicsEncoder(nn.Module):
         
         self.embed_dim = embed_dim
         
-        # MLP
         self.mlp = nn.Sequential(
             nn.Linear(2, hidden_dim),
             nn.ReLU(),
@@ -129,8 +132,6 @@ class DemographicsEncoder(nn.Module):
 class ViT1D_FM(nn.Module):
     """
     1D Vision Transformer Foundation Model.
-    
-    Paper: Van Santvliet et al. (2025)
     """
     
     def __init__(
@@ -262,3 +263,23 @@ class ViT1D_FM(nn.Module):
         print(f"  Missing keys: {len(msg.missing_keys)}")
         
         return msg
+
+
+# Test
+if __name__ == "__main__":
+    print("Testing FULLY FIXED ViT1D_FM...")
+    
+    model = ViT1D_FM()
+    
+    B = 16
+    signals = torch.randn(B, 12, 1000)
+    ages = torch.rand(B) * 1.2
+    sexes = torch.randint(0, 2, (B,)).float()
+    
+    features = model(signals, ages, sexes)
+    
+    print(f"\n✓ Forward pass successful!")
+    print(f"  Input: {signals.shape}")
+    print(f"  Output: {features.shape}")
+    assert features.shape == torch.Size([B, 768]), f"Expected ({B}, 768), got {features.shape}"
+    print(f"  ✓ Shape correct!")
