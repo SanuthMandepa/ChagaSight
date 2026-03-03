@@ -8,12 +8,12 @@ CORRECTED:
 - Patch size: (8, 64) divides (24, 2048) evenly
 - 24÷8=3, 2048÷64=32 → 96 patches total
 - AoL (Aggregation of Layers) from all 12 layers
-- FIXED MAE loader: nested model_state_dict + CLS pos_embed trim
 """
 
 import torch
 import torch.nn as nn
 from typing import Tuple
+
 
 class PatchEmbed2D(nn.Module):
     """
@@ -23,6 +23,7 @@ class PatchEmbed2D(nn.Module):
     Image size: (24, 2048)
     Result: 3×32 = 96 patches
     """
+    
     def __init__(
         self,
         img_size: Tuple[int, int] = (24, 2048),
@@ -39,9 +40,9 @@ class PatchEmbed2D(nn.Module):
         assert img_size[0] % patch_size[0] == 0
         assert img_size[1] % patch_size[1] == 0
         
-        self.num_patches_h = img_size[0] // patch_size[0] # 3
-        self.num_patches_w = img_size[1] // patch_size[1] # 32
-        self.num_patches = self.num_patches_h * self.num_patches_w # 96
+        self.num_patches_h = img_size[0] // patch_size[0]  # 3
+        self.num_patches_w = img_size[1] // patch_size[1]  # 32
+        self.num_patches = self.num_patches_h * self.num_patches_w  # 96
         
         # Conv2D projection
         self.proj = nn.Conv2d(
@@ -54,25 +55,26 @@ class PatchEmbed2D(nn.Module):
     def forward(self, x):
         """
         Args:
-        x: (B, 3, 24, 2048) uint8 images [0, 255]
+            x: (B, 3, 24, 2048) uint8 images [0, 255]
         
         Returns:
-        patches: (B, 96, 768)
+            patches: (B, 96, 768)
         """
         # Normalize to [0, 1]
         if x.dtype == torch.uint8:
             x = x.float() / 255.0
         
         # Project patches
-        x = self.proj(x) # (B, 768, 3, 32)
+        x = self.proj(x)  # (B, 768, 3, 32)
         
         # Flatten spatial dimensions
-        x = x.flatten(2) # (B, 768, 96)
+        x = x.flatten(2)  # (B, 768, 96)
         
         # Transpose to (B, 96, 768)
         x = x.transpose(1, 2)
         
         return x
+
 
 class ViT2D(nn.Module):
     """
@@ -80,6 +82,7 @@ class ViT2D(nn.Module):
     
     Paper: Van Santvliet et al. (2025) - AoL gives +11% improvement
     """
+    
     def __init__(
         self,
         img_size: Tuple[int, int] = (24, 2048),
@@ -135,15 +138,15 @@ class ViT2D(nn.Module):
     def forward(self, x):
         """
         Args:
-        x: (B, 3, 24, 2048) images
+            x: (B, 3, 24, 2048) images
         
         Returns:
-        features: (B, 768)
+            features: (B, 768)
         """
         self.layer_outputs = []
         
         # Patch embedding
-        x = self.patch_embed(x) # (B, 96, 768)
+        x = self.patch_embed(x)  # (B, 96, 768)
         
         # Add positional embedding
         x = x + self.pos_embed
@@ -163,47 +166,36 @@ class ViT2D(nn.Module):
             # AoL: Aggregate from all layers
             layer_features = []
             for layer_output in self.layer_outputs:
-                pooled = layer_output.mean(dim=1) # (B, 768)
+                pooled = layer_output.mean(dim=1)  # (B, 768)
                 layer_features.append(pooled)
             
-            features = torch.stack(layer_features, dim=0).mean(dim=0) # (B, 768)
+            features = torch.stack(layer_features, dim=0).mean(dim=0)  # (B, 768)
         else:
-            features = x.mean(dim=1) # (B, 768)
+            features = x.mean(dim=1)  # (B, 768)
         
         return features
     
     def load_mae_pretrained(self, checkpoint_path, strict=False):
-        """
-        Load MAE pretrained weights.
-        
-        FIXED: Handles nested model_state_dict + pos_embed CLS mismatch
-        """
+        """Load MAE pretrained weights."""
         checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
-        state_dict = checkpoint['model_state_dict']  # Direct access
         
-        # Extract encoder only (skip decoder)
+        if 'model_state_dict' in checkpoint:
+            state_dict = checkpoint['model_state_dict']
+        elif 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            state_dict = checkpoint
+        
+        # Filter encoder keys
         encoder_state_dict = {}
         for k, v in state_dict.items():
-            if 'decoder' not in k:
-                encoder_state_dict[k] = v
-        
-        # Handle pos_embed CLS token mismatch
-        if 'pos_embed' in encoder_state_dict:
-            pe = encoder_state_dict['pos_embed']
-            if pe.shape[1] == self.num_patches + 1:  # Has CLS token
-                encoder_state_dict['pos_embed'] = pe[:, 1:, :]  # Skip CLS
-                print("✓ Trimmed CLS token from MAE pos_embed")
+            if 'decoder' not in k and 'mask_token' not in k:
+                key = k.replace('encoder.', '')
+                encoder_state_dict[key] = v
         
         msg = self.load_state_dict(encoder_state_dict, strict=strict)
-        print(f"✓ Loaded MAE encoder: {len(encoder_state_dict)} modules")
-        print(f"  Missing: {len(msg.missing_keys)}")
+        
+        print(f"✓ Loaded MAE pretrained weights")
+        print(f"  Missing keys: {len(msg.missing_keys)}")
+        
         return msg
-
-# Test
-if __name__ == "__main__":
-    print("Testing ViT2D...")
-    model = ViT2D()
-    B = 2
-    images = torch.randint(0, 256, (B, 3, 24, 2048), dtype=torch.uint8)
-    features = model(images)
-    print(f"✓ Forward OK: {features.shape} = (B, 768)")

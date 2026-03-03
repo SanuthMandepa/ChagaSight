@@ -1,33 +1,32 @@
-# src/models/vit_1d_fm.py - PRODUCTION VERSION
+# src/models/vit_1d_fm.py - FULLY FIXED VERSION
 """
 1D Vision Transformer Foundation Model
 
 Paper: Van Santvliet et al. (2025)
 
-FIXED:
-1. Per-lead processing
-2. .contiguous() before .view()
-3. Nested model_state_dict loader + CLS pos_embed trim
-4. Demographics modulation (age/sex → γ,β)
-5. AoL from all 12 layers
+CRITICAL FIXES:
+1. Per-lead processing (previous fix)
+2. Use .contiguous() before .view() to avoid stride errors
 """
 
 import torch
 import torch.nn as nn
 from typing import Tuple
 
+
 class PatchEmbed1D(nn.Module):
     """
-    FIXED 1D Patch Embedding for ECG signals.
+    FULLY FIXED 1D Patch Embedding for ECG signals.
     
     Input: (12, 1000) @ 100Hz
-    Patch size: 50 samples 
+    Patch size: 50 samples  
     Result: 12 leads × 20 patches = 240 patches
     
     FIXES:
     - Per-lead processing (not all leads at once)
     - .contiguous() before .view() to avoid stride errors
     """
+    
     def __init__(
         self,
         num_leads: int = 12,
@@ -44,12 +43,12 @@ class PatchEmbed1D(nn.Module):
         
         assert seq_len % patch_size == 0
         
-        self.num_patches_per_lead = seq_len // patch_size # 20
-        self.num_patches = num_leads * self.num_patches_per_lead # 240
+        self.num_patches_per_lead = seq_len // patch_size  # 20
+        self.num_patches = num_leads * self.num_patches_per_lead  # 240
         
         # Per-lead Conv1D projection
         self.proj = nn.Conv1d(
-            1, # Process one lead at a time
+            1,  # Process one lead at a time
             embed_dim,
             kernel_size=patch_size,
             stride=patch_size
@@ -64,36 +63,38 @@ class PatchEmbed1D(nn.Module):
     def forward(self, x):
         """
         Args:
-        x: (B, 12, 1000) signals
+            x: (B, 12, 1000) signals
         
         Returns:
-        patches: (B, 240, 768)
+            patches: (B, 240, 768)
         """
         B, L, T = x.shape
         
         # Process each lead separately
-        x = x.view(B * L, 1, T) # (B*12, 1, 1000)
+        x = x.view(B * L, 1, T)  # (B*12, 1, 1000)
         
         # Project patches
-        x = self.proj(x) # (B*12, 768, 20)
+        x = self.proj(x)  # (B*12, 768, 20)
         
         # Reshape back
-        x = x.view(B, L, self.embed_dim, self.num_patches_per_lead) # (B, 12, 768, 20)
-        x = x.permute(0, 1, 3, 2) # (B, 12, 20, 768)
+        x = x.view(B, L, self.embed_dim, self.num_patches_per_lead)  # (B, 12, 768, 20)
+        x = x.permute(0, 1, 3, 2)  # (B, 12, 20, 768)
         
         # Add lead embeddings
-        x = x + self.lead_embed # (B, 12, 20, 768) + (1, 12, 1, 768)
+        x = x + self.lead_embed  # (B, 12, 20, 768) + (1, 12, 1, 768)
         
         # FIXED: Make contiguous before view
-        x = x.contiguous() # Ensure tensor is contiguous
-        x = x.view(B, self.num_patches, self.embed_dim) # (B, 240, 768)
+        x = x.contiguous()  # Ensure tensor is contiguous
+        x = x.view(B, self.num_patches, self.embed_dim)  # (B, 240, 768)
         
         return x
+
 
 class DemographicsEncoder(nn.Module):
     """
     Demographics encoder: (age, sex) → (γ, β) modulation.
     """
+    
     def __init__(self, embed_dim: int = 768, hidden_dim: int = 256):
         super().__init__()
         
@@ -110,27 +111,29 @@ class DemographicsEncoder(nn.Module):
         # Initialize to identity
         self.mlp[-1].weight.data.zero_()
         self.mlp[-1].bias.data.zero_()
-        self.mlp[-1].bias.data[:embed_dim] = 1.0 # γ = 1
+        self.mlp[-1].bias.data[:embed_dim] = 1.0  # γ = 1
     
     def forward(self, age, sex):
         """
         Args:
-        age: (B,) age in centuries
-        sex: (B,) sex as binary
+            age: (B,) age in centuries
+            sex: (B,) sex as binary
         
         Returns:
-        gamma: (B, 768)
-        beta: (B, 768)
+            gamma: (B, 768)
+            beta: (B, 768)
         """
-        demo = torch.stack([age, sex], dim=1) # (B, 2)
-        params = self.mlp(demo) # (B, 1536)
+        demo = torch.stack([age, sex], dim=1)  # (B, 2)
+        params = self.mlp(demo)  # (B, 1536)
         gamma, beta = params.chunk(2, dim=1)
         return gamma, beta
+
 
 class ViT1D_FM(nn.Module):
     """
     1D Vision Transformer Foundation Model.
     """
+    
     def __init__(
         self,
         num_leads: int = 12,
@@ -192,17 +195,17 @@ class ViT1D_FM(nn.Module):
     def forward(self, x, age=None, sex=None):
         """
         Args:
-        x: (B, 12, 1000) signals
-        age: (B,) age in centuries (optional)
-        sex: (B,) sex as binary (optional)
+            x: (B, 12, 1000) signals
+            age: (B,) age in centuries (optional)
+            sex: (B,) sex as binary (optional)
         
         Returns:
-        features: (B, 768)
+            features: (B, 768)
         """
         self.layer_outputs = []
         
         # Patch embedding
-        x = self.patch_embed(x) # (B, 240, 768)
+        x = self.patch_embed(x)  # (B, 240, 768)
         
         # Add positional embedding
         x = x + self.pos_embed
@@ -237,35 +240,36 @@ class ViT1D_FM(nn.Module):
         return features
     
     def load_stmem_pretrained(self, checkpoint_path, strict=False):
-        """
-        Load ST-MEM pretrained weights.
-        
-        FIXED: Handles nested model_state_dict + pos_embed CLS mismatch
-        """
+        """Load ST-MEM pretrained weights."""
         checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
-        state_dict = checkpoint['model_state_dict']  # Direct access
+
         
-        # Extract encoder only (skip decoder)
+        if 'model_state_dict' in checkpoint:
+            state_dict = checkpoint['model_state_dict']
+        elif 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            state_dict = checkpoint
+        
+        # Filter encoder keys
         encoder_state_dict = {}
         for k, v in state_dict.items():
-            if 'decoder' not in k:
-                encoder_state_dict[k] = v
-        
-        # Handle pos_embed CLS token mismatch
-        if 'pos_embed' in encoder_state_dict:
-            pe = encoder_state_dict['pos_embed']
-            if pe.shape[1] == self.num_patches + 1:  # Has CLS token
-                encoder_state_dict['pos_embed'] = pe[:, 1:, :]  # Skip CLS
-                print("✓ Trimmed CLS token from ST-MEM pos_embed")
+            if 'decoder' not in k and 'mask' not in k:
+                key = k.replace('encoder.', '')
+                encoder_state_dict[key] = v
         
         msg = self.load_state_dict(encoder_state_dict, strict=strict)
-        print(f"✓ Loaded ST-MEM encoder: {len(encoder_state_dict)} modules")
-        print(f"  Missing: {len(msg.missing_keys)}")
+        
+        print(f"✓ Loaded ST-MEM pretrained weights")
+        print(f"  Missing keys: {len(msg.missing_keys)}")
+        
         return msg
+
 
 # Test
 if __name__ == "__main__":
-    print("Testing ViT1D_FM...")
+    print("Testing FULLY FIXED ViT1D_FM...")
+    
     model = ViT1D_FM()
     
     B = 16
@@ -276,7 +280,7 @@ if __name__ == "__main__":
     features = model(signals, ages, sexes)
     
     print(f"\n✓ Forward pass successful!")
-    print(f" Input: {signals.shape}")
-    print(f" Output: {features.shape}")
+    print(f"  Input: {signals.shape}")
+    print(f"  Output: {features.shape}")
     assert features.shape == torch.Size([B, 768]), f"Expected ({B}, 768), got {features.shape}"
-    print(" ✓ Shape correct!")
+    print(f"  ✓ Shape correct!")
