@@ -1,0 +1,2 @@
+tpr_5pct,auroc,auprc,using_official,num_permutations,n_pos,n_total,fold,quick_test
+0.3304042179261863,0.8098531998209805,0.2119245350171611,True,10000,569,16626,2,False
