@@ -1,0 +1,43 @@
+CHAGASIGHT ENSEMBLE EVALUATION RESULTS
+======================================================================
+
+Date: 2026-03-08 10:23:47
+
+DATASET:
+  Total samples: 83,130
+  Positive: 2,846 (3.42%)
+  Negative: 80,284
+
+PRIMARY METRICS:
+  TPR@5%:  0.6124  (PRIMARY)
+  AUROC:   0.9275
+  AUPRC:   0.4973
+
+THRESHOLD-BASED (threshold = 0.7566):
+  Accuracy:    0.8422
+  Precision:   0.1592
+  Recall:      0.8429
+  Specificity: 0.8422
+  F1:          0.2679
+
+CONFUSION MATRIX:
+           Predicted
+         Neg      Pos
+  Neg  67,617  12,667
+  Pos     447   2,399
+
+BENCHMARKS:
+  Target:     0.4200
+  Top Team:   0.4450
+  SOTA:       0.4900
+
+  Your Score: 0.6124
+  vs Target:  +0.1924
+  vs Top:     +0.1674
+  % of SOTA:  125.0%
+
+MODEL:
+  Architecture: Hybrid dual-pathway (2D-ViT + 1D-ViT FM)
+  Parameters: 173,570,817
+  Ensemble: 5-fold cross-validation
+  Papers: Kim et al. (2025), Van Santvliet et al. (2025)
