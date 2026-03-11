@@ -1,0 +1,10 @@
+Metric,Value
+TPR @ 5% FPR,0.6124
+AUROC,0.9275
+AUPRC,0.4973
+Sensitivity (Recall),0.8429
+Specificity,0.8422
+Precision (PPV),0.1592
+NPV,0.9934
+F1 Score,0.2679
+Accuracy,0.8422

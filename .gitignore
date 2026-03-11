@@ -5,6 +5,7 @@ data/processed/*
 !data/processed/.keep
 data/splits/*
 !data/splits/.keep
+data/*
 
 # Results & checkpoints
 results/*

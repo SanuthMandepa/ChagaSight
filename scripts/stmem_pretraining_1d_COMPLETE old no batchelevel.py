@@ -1,5 +1,5 @@
 """
-MAE 2D Pretraining - Professional Production Version
+ST-MEM 1D Pretraining - Professional Production Version
 
 Features:
 - Dataset volume control (--subset for testing)
@@ -7,14 +7,18 @@ Features:
 - Auto-resume from checkpoint with correct epoch handling
 - Signal handler (saves on Ctrl+C)
 - Time tracking and ETA estimation
-- Progress tracking with tqdm
+- Per-lead masking (prevents cross-lead leakage)
+- Lead embeddings + SEP tokens
+
+ST-MEM = Spatiotemporal Masked ECG Modeling
+Paper: Van Santvliet et al. (2025) Section 2.1
 
 Usage:
 # Test with 1% data first
-python mae_pretraining_2d_COMPLETE.py --subset 0.01 --epochs 5
+python stmem_pretraining_1d_COMPLETE.py --subset 0.01 --epochs 5
 
 # Full training
-python mae_pretraining_2d_COMPLETE.py --epochs 100
+python stmem_pretraining_1d_COMPLETE.py --epochs 100
 """
 
 import sys
@@ -30,95 +34,131 @@ from datetime import datetime
 import time
 
 # =============================================================================
-# 1. MAE DATASET
+# 1. ST-MEM DATASET
 # =============================================================================
 
-class MAEImageDataset(Dataset):
-    """Dataset for MAE pretraining (all 2D images, no labels needed)."""
+class STMEMSignalDataset(Dataset):
+    """Dataset for ST-MEM pretraining (all 1D signals, no labels)."""
     
     def __init__(self, data_dir, subset=1.0, seed=42):
         """
         Args:
-            data_dir: Path to data/processed/2d_images
-            subset: Fraction of data to use (0.01 = 1%, 1.0 = 100%)
-            seed: Random seed for reproducibility
+            data_dir: Path to data/processed/1d_signals_100hz
+            subset: Fraction of data to use
+            seed: Random seed
         """
         self.data_dir = Path(data_dir)
         
-        # Find all .npy image files from all datasets
-        self.image_paths = []
+        # Find all .npy signal files
+        self.signal_paths = []
         for dataset in ['ptbxl', 'samitrop', 'code15']:
             dataset_dir = self.data_dir / dataset
             if dataset_dir.exists():
                 paths = sorted(dataset_dir.glob('*.npy'))
-                self.image_paths.extend(paths)
+                self.signal_paths.extend(paths)
         
-        if len(self.image_paths) == 0:
-            raise ValueError(f'No images found in {data_dir}')
+        if len(self.signal_paths) == 0:
+            raise ValueError(f'No signals found in {data_dir}')
         
-        # Apply subset for testing
+        # Apply subset
         if subset < 1.0:
             np.random.seed(seed)
-            n_samples = int(len(self.image_paths) * subset)
-            indices = np.random.choice(len(self.image_paths), n_samples, replace=False)
-            self.image_paths = [self.image_paths[i] for i in sorted(indices)]
+            n_samples = int(len(self.signal_paths) * subset)
+            indices = np.random.choice(len(self.signal_paths), n_samples, replace=False)
+            self.signal_paths = [self.signal_paths[i] for i in sorted(indices)]
         
-        print(f'[DATA] Loaded {len(self.image_paths)} images ({subset*100:.1f}% of data)')
+        print(f'[DATA] Loaded {len(self.signal_paths)} signals ({subset*100:.1f}% of data)')
     
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.signal_paths)
     
     def __getitem__(self, idx):
-        # Load image: (3, 24, 2048) uint8
-        img = np.load(self.image_paths[idx])
-        img = torch.from_numpy(img).float() / 255.0  # [0, 1]
-        return img
+        # Load signal: (12, 1000) float32
+        signal = np.load(self.signal_paths[idx])
+        signal = torch.from_numpy(signal).float()
+        return signal
 
 # =============================================================================
-# 2. MAE MODEL ARCHITECTURE
+# 2. ST-MEM MODEL
 # =============================================================================
 
-class PatchEmbed2D(nn.Module):
-    """2D Patch Embedding for ECG images."""
-    def __init__(self, img_size=(24, 2048), patch_size=(8, 64), in_channels=3, embed_dim=768):
+class PatchEmbed1D(nn.Module):
+    """1D Patch Embedding with per-lead processing."""
+    def __init__(self, num_leads=12, seq_len=1000, patch_size=50, embed_dim=768):
         super().__init__()
-        self.img_size = img_size
+        self.num_leads = num_leads
+        self.seq_len = seq_len
         self.patch_size = patch_size
-        self.num_patches = (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1])  # 96
+        self.embed_dim = embed_dim
         
-        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+        assert seq_len % patch_size == 0
+        self.num_patches_per_lead = seq_len // patch_size  # 20
+        self.num_patches = num_leads * self.num_patches_per_lead  # 240
+        
+        # Per-lead Conv1D
+        self.proj = nn.Conv1d(1, embed_dim, kernel_size=patch_size, stride=patch_size)
+        
+        # Lead embeddings (which lead is this patch from?)
+        self.lead_embed = nn.Parameter(torch.zeros(1, num_leads, 1, embed_dim))
+        nn.init.trunc_normal_(self.lead_embed, std=0.02)
     
     def forward(self, x):
-        x = self.proj(x)  # (B, 768, 3, 32)
-        x = x.flatten(2).transpose(1, 2)  # (B, 96, 768)
+        """
+        Args:
+            x: (B, 12, 1000) signals
+        Returns:
+            patches: (B, 240, 768)
+        """
+        B, L, T = x.shape
+        
+        # Process each lead separately
+        x = x.view(B * L, 1, T)  # (B*12, 1, 1000)
+        x = self.proj(x)  # (B*12, 768, 20)
+        
+        # Reshape back
+        x = x.view(B, L, self.embed_dim, self.num_patches_per_lead)
+        x = x.permute(0, 1, 3, 2)  # (B, 12, 20, 768)
+        
+        # Add lead embeddings
+        x = x + self.lead_embed
+        
+        # Flatten
+        x = x.contiguous().view(B, self.num_patches, self.embed_dim)
+        
         return x
 
-class MAE2D(nn.Module):
+class STMEM1D(nn.Module):
     """
-    Masked Autoencoder for 2D ECG images.
+    Spatiotemporal Masked ECG Modeling.
     
-    Paper: He et al. (2022) + Kim et al. (2025)
-    Architecture:
-    - Encoder: 12-layer ViT (saved for fine-tuning)
-    - Decoder: 4-layer lightweight (discarded after pretraining)
-    - Mask ratio: 75%
-    - Loss: MSE on masked patches only
+    Paper: Van Santvliet et al. (2025) Section 2.1
+    
+    Key differences from standard MAE:
+    1. Per-lead masking (mask each lead independently)
+    2. Lead embeddings (spatial information)
+    3. SEP tokens between leads
+    4. Shared decoder across leads (prevents cross-lead leakage)
     """
     
-    def __init__(self, img_size=(24, 2048), patch_size=(8, 64), 
+    def __init__(self, num_leads=12, seq_len=1000, patch_size=50,
                  embed_dim=768, depth=12, num_heads=12,
                  decoder_embed_dim=512, decoder_depth=4, decoder_num_heads=8,
                  mask_ratio=0.75):
         super().__init__()
         
-        self.patch_embed = PatchEmbed2D(img_size, patch_size, 3, embed_dim)
-        num_patches = self.patch_embed.num_patches
+        self.patch_embed = PatchEmbed1D(num_leads, seq_len, patch_size, embed_dim)
+        self.num_leads = num_leads
+        self.num_patches_per_lead = seq_len // patch_size  # 20
+        self.num_patches = self.patch_embed.num_patches  # 240
         self.mask_ratio = mask_ratio
         self.patch_size = patch_size
         
-        # Encoder (saved for fine-tuning)
+        # Encoder
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
+        self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches + 1, embed_dim))
+        
+        # SEP tokens (separate leads)
+        self.sep_tokens = nn.Parameter(torch.zeros(1, num_leads, embed_dim))
         
         self.encoder = nn.ModuleList([
             nn.TransformerEncoderLayer(
@@ -134,10 +174,10 @@ class MAE2D(nn.Module):
         ])
         self.encoder_norm = nn.LayerNorm(embed_dim)
         
-        # Decoder (discarded after pretraining)
+        # Decoder (lead-wise shared)
         self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
-        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim))
+        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, self.num_patches + 1, decoder_embed_dim))
         
         self.decoder = nn.ModuleList([
             nn.TransformerEncoderLayer(
@@ -152,39 +192,72 @@ class MAE2D(nn.Module):
             for _ in range(decoder_depth)
         ])
         self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size[0] * patch_size[1] * 3)
+        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size)
         
         self.initialize_weights()
     
     def initialize_weights(self):
         nn.init.trunc_normal_(self.cls_token, std=0.02)
         nn.init.trunc_normal_(self.pos_embed, std=0.02)
+        nn.init.trunc_normal_(self.sep_tokens, std=0.02)
         nn.init.trunc_normal_(self.mask_token, std=0.02)
         nn.init.trunc_normal_(self.decoder_pos_embed, std=0.02)
     
-    def random_masking(self, x, mask_ratio):
-        """Random masking of patches."""
-        B, N, D = x.shape  # (B, 96, 768)
-        len_keep = int(N * (1 - mask_ratio))
+    def random_masking_per_lead(self, x, mask_ratio):
+        """
+        Random masking per lead (prevents cross-lead leakage).
         
-        noise = torch.rand(B, N, device=x.device)
-        ids_shuffle = torch.argsort(noise, dim=1)
-        ids_restore = torch.argsort(ids_shuffle, dim=1)
+        Args:
+            x: (B, 240, 768) patches [12 leads × 20 patches]
+            mask_ratio: fraction to mask
         
-        ids_keep = ids_shuffle[:, :len_keep]
-        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+        Returns:
+            x_masked: visible patches
+            mask: (B, 240) binary mask
+            ids_restore: indices to restore
+        """
+        B, N, D = x.shape
+        patches_per_lead = N // self.num_leads  # 20
+        len_keep = int(patches_per_lead * (1 - mask_ratio))
         
-        mask = torch.ones([B, N], device=x.device)
-        mask[:, :len_keep] = 0
-        mask = torch.gather(mask, dim=1, index=ids_restore)
+        x_masked_list = []
+        mask_list = []
+        ids_restore_list = []
+        
+        # Mask each lead independently
+        for lead_idx in range(self.num_leads):
+            start = lead_idx * patches_per_lead
+            end = (lead_idx + 1) * patches_per_lead
+            
+            x_lead = x[:, start:end, :]  # (B, 20, 768)
+            
+            # Random masking for this lead
+            noise = torch.rand(B, patches_per_lead, device=x.device)
+            ids_shuffle = torch.argsort(noise, dim=1)
+            ids_restore = torch.argsort(ids_shuffle, dim=1)
+            
+            ids_keep = ids_shuffle[:, :len_keep]
+            x_masked_lead = torch.gather(x_lead, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+            
+            mask_lead = torch.ones([B, patches_per_lead], device=x.device)
+            mask_lead[:, :len_keep] = 0
+            mask_lead = torch.gather(mask_lead, dim=1, index=ids_restore)
+            
+            x_masked_list.append(x_masked_lead)
+            mask_list.append(mask_lead)
+            ids_restore_list.append(ids_restore + start)  # Offset by lead position
+        
+        x_masked = torch.cat(x_masked_list, dim=1)
+        mask = torch.cat(mask_list, dim=1)
+        ids_restore = torch.cat(ids_restore_list, dim=1)
         
         return x_masked, mask, ids_restore
     
     def forward_encoder(self, x, mask_ratio):
-        x = self.patch_embed(x)
+        x = self.patch_embed(x)  # (B, 240, 768)
         x = x + self.pos_embed[:, 1:, :]
         
-        x, mask, ids_restore = self.random_masking(x, mask_ratio)
+        x, mask, ids_restore = self.random_masking_per_lead(x, mask_ratio)
         
         cls_token = self.cls_token + self.pos_embed[:, :1, :]
         cls_tokens = cls_token.expand(x.shape[0], -1, -1)
@@ -215,33 +288,33 @@ class MAE2D(nn.Module):
         
         return x
     
-    def forward_loss(self, imgs, pred, mask):
-        """MSE loss on masked patches only."""
-        target = self.patchify(imgs)
+    def forward_loss(self, signals, pred, mask):
+        """MSE loss on masked patches, per-lead."""
+        target = self.patchify(signals)
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)
         
         loss = (loss * mask).sum() / mask.sum()
         return loss
     
-    def patchify(self, imgs):
-        """Convert images to patches."""
-        B, C, H, W = imgs.shape
-        p_h, p_w = self.patch_size
-        h, w = H // p_h, W // p_w
+    def patchify(self, signals):
+        """Convert signals to patches."""
+        B, L, T = signals.shape  # (B, 12, 1000)
+        p = self.patch_size
+        n = T // p
         
-        x = imgs.reshape(B, C, h, p_h, w, p_w)
-        x = x.permute(0, 2, 4, 3, 5, 1)
-        x = x.reshape(B, h * w, p_h * p_w * C)
+        x = signals.reshape(B, L, n, p)
+        x = x.permute(0, 1, 2, 3)
+        x = x.reshape(B, L * n, p)
         return x
     
-    def forward(self, imgs, mask_ratio=None):
+    def forward(self, signals, mask_ratio=None):
         if mask_ratio is None:
             mask_ratio = self.mask_ratio
         
-        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
+        latent, mask, ids_restore = self.forward_encoder(signals, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)
-        loss = self.forward_loss(imgs, pred, mask)
+        loss = self.forward_loss(signals, pred, mask)
         
         return loss, pred, mask
 
@@ -256,8 +329,8 @@ class CheckpointManager:
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         
-        self.checkpoint_path = self.checkpoint_dir / 'mae_2d_checkpoint.pt'
-        self.best_model_path = self.checkpoint_dir / 'mae_2d_pretrained.pt'
+        self.checkpoint_path = self.checkpoint_dir / 'stmem_1d_checkpoint.pt'
+        self.best_model_path = self.checkpoint_dir / 'stmem_1d_pretrained.pt'
         
         self.interrupted = False
         
@@ -303,6 +376,7 @@ class CheckpointManager:
                     'patch_embed': model.patch_embed.state_dict(),
                     'cls_token': model.cls_token,
                     'pos_embed': model.pos_embed,
+                    'sep_tokens': model.sep_tokens,
                     'encoder': model.encoder.state_dict(),
                     'encoder_norm': model.encoder_norm.state_dict(),
                 },
@@ -318,8 +392,6 @@ class CheckpointManager:
         
         print(f'[CHECKPOINT] Loading from {self.checkpoint_path}...')
         checkpoint = torch.load(self.checkpoint_path, map_location=device, weights_only=False)
-
-
         
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -345,12 +417,12 @@ class CheckpointManager:
 # 4. TRAINING LOOP (WITH TIME TRACKING)
 # =============================================================================
 
-def train_mae(args):
+def train_stmem(args):
     """Main training function."""
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'\n{"="*70}')
-    print(f'MAE 2D Pretraining')
+    print(f'ST-MEM 1D Pretraining')
     print(f'{"="*70}')
     print(f'Device: {device}')
     if device.type == 'cuda':
@@ -369,7 +441,7 @@ def train_mae(args):
         print(f'[WARNING] Set --subset 1.0 for full training\n')
     
     # Dataset
-    dataset = MAEImageDataset(args.data_dir, subset=args.subset)
+    dataset = STMEMSignalDataset(args.data_dir, subset=args.subset)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -381,10 +453,10 @@ def train_mae(args):
     print(f'[DATA] DataLoader: {len(loader)} batches per epoch\n')
     
     # Model
-    model = MAE2D(mask_ratio=args.mask_ratio).to(device)
+    model = STMEM1D(mask_ratio=args.mask_ratio).to(device)
     total_params = sum(p.numel() for p in model.parameters())
     encoder_params = sum(p.numel() for p in model.encoder.parameters())
-    print(f'[MODEL] Created MAE2D:')
+    print(f'[MODEL] Created STMEM1D:')
     print(f'[MODEL]   Total params: {total_params:,}')
     print(f'[MODEL]   Encoder params: {encoder_params:,} (saved for fine-tuning)')
     print(f'[MODEL]   Decoder params: {total_params - encoder_params:,} (discarded)\n')
@@ -397,7 +469,7 @@ def train_mae(args):
         weight_decay=args.weight_decay
     )
     
-    # Scheduler with warmup
+    # Scheduler
     def get_lr_schedule(epoch):
         if epoch < args.warmup_epochs:
             return (epoch + 1) / args.warmup_epochs
@@ -422,11 +494,11 @@ def train_mae(args):
         epoch_start_time = time.time()
         
         pbar = tqdm(loader, desc=f'Epoch {epoch+1}/{args.epochs}')
-        for imgs in pbar:
-            imgs = imgs.to(device)
+        for signals in pbar:
+            signals = signals.to(device)
             
             # Forward
-            loss, _, _ = model(imgs)
+            loss, _, _ = model(signals)
             
             # Backward
             optimizer.zero_grad()
@@ -482,20 +554,20 @@ def train_mae(args):
 # =============================================================================
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='MAE 2D Pretraining')
+    parser = argparse.ArgumentParser(description='ST-MEM 1D Pretraining')
     
     # Data
     parser.add_argument('--data-dir', type=str, 
-                       default='data/processed/2d_images',
-                       help='Path to 2D images directory')
+                       default='data/processed/1d_signals_100hz',
+                       help='Path to 1D signals directory')
     parser.add_argument('--subset', type=float, default=1.0,
                        help='Dataset subset (0.01=1%%, 1.0=100%%). Use 0.01 for testing!')
     
     # Training
-    parser.add_argument('--epochs', type=int, default=50,
-                       help='Number of epochs (30-50 recommended for thesis, 100+ for best results)')
+    parser.add_argument('--epochs', type=int, default=100,
+                       help='Number of epochs')
     parser.add_argument('--batch-size', type=int, default=16,
-                       help='Batch size')
+                       help='Batch size (16 for 6GB GPU, 64 for 24GB GPU)')
     parser.add_argument('--learning-rate', type=float, default=1.5e-4,
                        help='Learning rate')
     parser.add_argument('--weight-decay', type=float, default=0.05,
@@ -515,4 +587,4 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    train_mae(args)
+    train_stmem(args)

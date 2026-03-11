@@ -1,9 +1,8 @@
-# scripts/build_all_data.py
-# End-to-end preprocessing for PTB-XL, SaMi-Trop, CODE-15 in WFDB format.
-# Produces:
-#   - 2D images: (3,24,2048) uint8 as .npy
-#   - 1D FM signals: (12,1000) float32 as .npy
-#   - metadata CSV(s) with label_hard + label_soft and binary sex (1=male, 0=female)
+# scripts/build_all_data.py - ENHANCED VERSION
+# Features:
+# - Dataset selection: --datasets ptbxl samitrop code15
+# - Smart CSV merging: skips reprocessing existing datasets
+# - Automatic metadata combination
 
 from __future__ import annotations
 
@@ -36,7 +35,6 @@ def _normalize_sex_value(raw: Any) -> Optional[int]:
     """
     Normalize various sex encodings to 1/0:
       1 = male, 0 = female, None = unknown/missing.
-    Accepts: bool, int, float, str.
     """
     if raw is None or (isinstance(raw, float) and np.isnan(raw)):
         return None
@@ -77,7 +75,7 @@ def _reorder_to_standard(
     if helper_code_module is None:
         return psignal.T.astype(np.float32, copy=False)
     try:
-        reordered = helper_code_module.reordersignal(psignal, sig_names, STANDARD_12)  # (T, 12)
+        reordered = helper_code_module.reordersignal(psignal, sig_names, STANDARD_12)
         return reordered.T.astype(np.float32, copy=False)
     except Exception:
         return psignal.T.astype(np.float32, copy=False)
@@ -156,7 +154,7 @@ def process_single_record(
             "img_path": str(img_path),
             "fm_path": str(sig_path),
         }
-    except Exception:
+    except Exception as e:
         return None
 
 
@@ -259,17 +257,14 @@ def process_samitrop(samitrop_dir: Path, out_2d: Path, out_1d: Path,
 
 def process_code15(code15_dir: Path, out_2d: Path, out_1d: Path,
                    helper_code_module, subset: float, train_mode: bool):
-    # labels
     label_csv = code15_dir / "code15_chagas_labels.csv"
     if not label_csv.exists():
         label_csv = code15_dir / "code15chagaslabels.csv"
     labels_df = pd.read_csv(label_csv)
 
-    # exams with age + is_male
     exams_csv = code15_dir / "exams.csv"
     exams_df = pd.read_csv(exams_csv)
 
-    # Merge to get age and is_male into labels_df
     merged = labels_df.merge(
         exams_df[["exam_id", "age", "is_male"]],
         on="exam_id",
@@ -312,12 +307,56 @@ def process_code15(code15_dir: Path, out_2d: Path, out_1d: Path,
     return out
 
 
+# -------------------- smart CSV merging -------------------- #
+
+def merge_metadata_csvs(meta_dir: Path, datasets_processed: List[str]) -> pd.DataFrame:
+    """
+    Intelligently merge existing and new metadata CSVs.
+    """
+    all_parts = []
+    
+    # Try to load existing CSVs for datasets NOT being processed
+    all_datasets = ["ptbxl", "samitrop", "code15"]
+    for ds in all_datasets:
+        csv_path = meta_dir / f"{ds}_metadata.csv"
+        if csv_path.exists() and ds not in datasets_processed:
+            # Keep existing data for this dataset
+            df = pd.read_csv(csv_path)
+            all_parts.append(df)
+            print(f"  ✓ Loaded existing {ds}: {len(df)} samples")
+    
+    # Add newly processed datasets
+    for ds in datasets_processed:
+        csv_path = meta_dir / f"{ds}_metadata.csv"
+        if csv_path.exists():
+            df = pd.read_csv(csv_path)
+            all_parts.append(df)
+            print(f"  ✓ Loaded new {ds}: {len(df)} samples")
+    
+    if not all_parts:
+        return pd.DataFrame()
+    
+    combined = pd.concat(all_parts, ignore_index=True)
+    
+    # Remove duplicates (keep first occurrence)
+    combined = combined.drop_duplicates(subset=['id'], keep='first')
+    
+    return combined
+
+
 # -------------------- main -------------------- #
 
 def main():
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(description="Preprocess ECG datasets with smart merging")
     p.add_argument("--official_wfdb_root", type=str, default="data/official_wfdb")
     p.add_argument("--processed_root", type=str, default="data/processed")
+    p.add_argument(
+        "--datasets",
+        nargs="+",
+        choices=["ptbxl", "samitrop", "code15", "all"],
+        default=["all"],
+        help="Datasets to process. Use 'all' or specify: ptbxl samitrop code15"
+    )
     p.add_argument("--subset", type=float, default=1.0)
     p.add_argument("--train_mode", action="store_true", help="Enable random crop for 2D embedding")
     p.add_argument(
@@ -326,6 +365,7 @@ def main():
         default=r"D:\IIT\L6\FYP\ChagaSight\external\official_2025",
         help="Directory containing helper_code.py",
     )
+    p.add_argument("--skip_merge", action="store_true", help="Skip merging with existing CSVs")
     args = p.parse_args()
 
     official = Path(args.official_wfdb_root)
@@ -338,56 +378,122 @@ def main():
 
     helper_code_module = _try_import_helper_code(args.helper_dir)
 
-    all_md: List[Dict[str, Any]] = []
+    # Determine which datasets to process
+    if "all" in args.datasets:
+        datasets_to_process = ["ptbxl", "samitrop", "code15"]
+    else:
+        datasets_to_process = args.datasets
 
-    if (official / "ptbxl").exists():
-        md = process_ptbxl(
-            official / "ptbxl",
-            out_2d / "ptbxl",
-            out_1d / "ptbxl",
-            helper_code_module,
-            args.subset,
-            args.train_mode,
-        )
-        pd.DataFrame(md).to_csv(meta_dir / "ptbxl_metadata.csv", index=False)
-        all_md.extend(md)
+    print("="*70)
+    print(" DATASET PREPROCESSING")
+    print("="*70)
+    print(f"Datasets to process: {', '.join(datasets_to_process)}")
+    print(f"Subset: {args.subset}")
+    print(f"Train mode: {args.train_mode}")
+    print("="*70 + "\n")
 
-    if (official / "samitrop").exists():
-        md = process_samitrop(
-            official / "samitrop",
-            out_2d / "samitrop",
-            out_1d / "samitrop",
-            helper_code_module,
-            args.subset,
-            args.train_mode,
-        )
-        pd.DataFrame(md).to_csv(meta_dir / "samitrop_metadata.csv", index=False)
-        all_md.extend(md)
+    datasets_processed = []
 
-    if (official / "code15").exists():
-        md = process_code15(
-            official / "code15",
-            out_2d / "code15",
-            out_1d / "code15",
-            helper_code_module,
-            args.subset,
-            args.train_mode,
-        )
-        pd.DataFrame(md).to_csv(meta_dir / "code15_metadata.csv", index=False)
-        all_md.extend(md)
+    # PTB-XL
+    if "ptbxl" in datasets_to_process:
+        ptbxl_dir = official / "ptbxl"
+        if ptbxl_dir.exists():
+            print("\n📊 Processing PTB-XL...")
+            md = process_ptbxl(
+                ptbxl_dir,
+                out_2d / "ptbxl",
+                out_1d / "ptbxl",
+                helper_code_module,
+                args.subset,
+                args.train_mode,
+            )
+            pd.DataFrame(md).to_csv(meta_dir / "ptbxl_metadata.csv", index=False)
+            datasets_processed.append("ptbxl")
+            print(f"✓ PTB-XL complete: {len(md)} samples")
+        else:
+            print(f"⚠ PTB-XL directory not found: {ptbxl_dir}")
 
-    all_df = pd.DataFrame(all_md)
-    all_df.to_csv(meta_dir / "all_data.csv", index=False)
+    # SaMi-Trop (handles both "samitrop" and "sami_trop")
+    if "samitrop" in datasets_to_process:
+        samitrop_dir = official / "samitrop"
+        if not samitrop_dir.exists():
+            samitrop_dir = official / "sami_trop"  # Try alternate name
+        
+        if samitrop_dir.exists():
+            print("\n📊 Processing SaMi-Trop...")
+            md = process_samitrop(
+                samitrop_dir,
+                out_2d / "samitrop",
+                out_1d / "samitrop",
+                helper_code_module,
+                args.subset,
+                args.train_mode,
+            )
+            pd.DataFrame(md).to_csv(meta_dir / "samitrop_metadata.csv", index=False)
+            datasets_processed.append("samitrop")
+            print(f"✓ SaMi-Trop complete: {len(md)} samples")
+        else:
+            print(f"⚠ SaMi-Trop directory not found. Tried:")
+            print(f"  - {official / 'samitrop'}")
+            print(f"  - {official / 'sami_trop'}")
 
-    print("Preprocessing complete.")
+    # CODE-15
+    if "code15" in datasets_to_process:
+        code15_dir = official / "code15"
+        if code15_dir.exists():
+            print("\n📊 Processing CODE-15...")
+            md = process_code15(
+                code15_dir,
+                out_2d / "code15",
+                out_1d / "code15",
+                helper_code_module,
+                args.subset,
+                args.train_mode,
+            )
+            pd.DataFrame(md).to_csv(meta_dir / "code15_metadata.csv", index=False)
+            datasets_processed.append("code15")
+            print(f"✓ CODE-15 complete: {len(md)} samples")
+        else:
+            print(f"⚠ CODE-15 directory not found: {code15_dir}")
+
+    # Merge metadata
+    print("\n" + "="*70)
+    print(" MERGING METADATA")
+    print("="*70)
+    
+    if args.skip_merge:
+        print("⚠ Skipping merge (--skip_merge flag)")
+        all_df = pd.DataFrame()
+        for ds in datasets_processed:
+            csv_path = meta_dir / f"{ds}_metadata.csv"
+            if csv_path.exists():
+                df = pd.read_csv(csv_path)
+                all_df = pd.concat([all_df, df], ignore_index=True)
+    else:
+        all_df = merge_metadata_csvs(meta_dir, datasets_processed)
+    
+    if len(all_df) > 0:
+        all_df.to_csv(meta_dir / "all_data.csv", index=False)
+        print(f"\n✓ Saved combined: all_data.csv ({len(all_df)} samples)")
+
+    print("\n" + "="*70)
+    print(" PREPROCESSING COMPLETE")
+    print("="*70)
     print(f"Total samples: {len(all_df)}")
     if len(all_df) > 0:
-        print("By dataset:\n", all_df["dataset"].value_counts())
-        print("Hard positives:", int(all_df["label_hard"].sum()))
-        print("Mean soft label:", float(all_df["label_soft"].mean()))
+        print("\nBy dataset:")
+        print(all_df["dataset"].value_counts().to_string())
+        print(f"\nHard positives: {int(all_df['label_hard'].sum())}")
+        print(f"Mean soft label: {float(all_df['label_soft'].mean()):.4f}")
         if "sex" in all_df.columns:
-            print("Sex value counts (1=male,0=female,NaN=missing):")
-            print(all_df["sex"].value_counts(dropna=False))
+            print("\nSex distribution (1=male, 0=female, NaN=missing):")
+            print(all_df["sex"].value_counts(dropna=False).to_string())
+    
+    print("\n📁 Output locations:")
+    print(f"  2D images: {out_2d}")
+    print(f"  1D signals: {out_1d}")
+    print(f"  Metadata: {meta_dir}")
+    print("="*70)
 
 
 if __name__ == "__main__":
