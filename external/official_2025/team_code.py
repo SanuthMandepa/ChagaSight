@@ -1,173 +1,338 @@
 #!/usr/bin/env python
+# team_code.py — ChagaSight: HybridChagasModel for PhysioNet Challenge 2025
+"""
+ChagaSight Challenge Submission Wrapper
 
-# Edit this script to add your team's code. Some functions are *required*, but you can edit most parts of the required functions,
-# change or remove non-required functions, and add your own functions.
+Implements the three required PhysioNet interface functions:
+  - train_model(data_folder, model_folder, verbose)
+  - load_model(model_folder, verbose)
+  - run_model(record, model, verbose)
 
-################################################################################
-#
-# Optional libraries, functions, and variables. You can change or remove them.
-#
-################################################################################
+The model is a HybridChagasModel trained with the full ChagaSight pipeline.
+This file wraps the pre-trained ensemble checkpoints for inference.
 
-import joblib
+Architecture:
+  - 2D-ViT pathway: processes (3, 24, 2048) ECG contour images
+  - 1D-ViT FM pathway: processes (12, 1000) ECG signals + demographics
+  - Ensemble of 5 fold models → averaged probability
+"""
+
 import numpy as np
 import os
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 import sys
+import torch
+import json
+from pathlib import Path
 
-from helper_code import *
+# ── Path setup ────────────────────────────────────────────────────────────────
+_THIS_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _THIS_DIR.parent.parent   # ChagaSight/external/official_2025 → ChagaSight/
 
-################################################################################
-#
-# Required functions. Edit these functions to add your code, but do not change the arguments for the functions.
-#
-################################################################################
+# Add project source to path
+for _p in [str(_PROJECT_ROOT), str(_PROJECT_ROOT / 'src')]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-# Train your models. This function is *required*. You should edit this function to add your code, but do *not* change the arguments
-# of this function. If you do not train one of the models, then you can return None for the model.
+from helper_code import (
+    find_records, load_header, get_age, get_sex, get_source,
+    load_signals, reorder_signal, save_outputs
+)
 
-# Train your model.
+# ── Preprocessing imports ─────────────────────────────────────────────────────
+try:
+    from preprocessing.resample import resample_signal, pad_or_trim
+    from preprocessing.normalization import normalize_per_lead
+    from preprocessing.baseline_removal import remove_baseline
+    from preprocessing.image_embedding import build_2d_image
+    PREPROCESSING_AVAILABLE = True
+except ImportError as e:
+    PREPROCESSING_AVAILABLE = False
+    print(f'⚠️  Preprocessing not available: {e}')
+
+# ── Model import ──────────────────────────────────────────────────────────────
+try:
+    from models.hybrid_model import HybridChagasModel
+    MODEL_AVAILABLE = True
+except ImportError as e:
+    MODEL_AVAILABLE = False
+    print(f'⚠️  HybridChagasModel not available: {e}')
+
+# ── Constants ─────────────────────────────────────────────────────────────────
+TARGET_FS_1D   = 100    # Hz — Van Santvliet et al.
+TARGET_FS_2D   = 100    # Hz — same; images are built at 100Hz
+TARGET_LEN     = 1000   # samples at 100Hz = 10 seconds
+TARGET_LEN_2D  = 2048   # width in pixels for 2D image
+REFERENCE_LEADS = ['I', 'II', 'III', 'AVR', 'AVL', 'AVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
+
+MODEL_CONFIG = dict(
+    img_size=(24, 2048), patch_size_2d=(8, 64),
+    num_leads=12, seq_len_1d=1000, patch_size_1d=50,
+    embed_dim=768, depth=12, num_heads=12,
+    use_aol=True, use_demographics=True,
+)
+
+DECISION_THRESHOLD = 0.5   # Updated at load time from saved config if available
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Required function 1: train_model
+# ────────────────────────────────────────────────────────────────────────────
+
 def train_model(data_folder, model_folder, verbose):
-    # Find the data files.
-    if verbose:
-        print('Finding the Challenge data...')
+    """
+    Required by PhysioNet interface.
 
-    records = find_records(data_folder)
-    num_records = len(records)
+    ChagaSight uses a separate, multi-stage training pipeline:
+      1. MAE pretraining (mae_pretraining_2d_COMPLETE.py)
+      2. ST-MEM pretraining (stmem_pretraining_1d_COMPLETE.py)
+      3. 5-fold fine-tuning (10_train_fold_FINAL_v11.ipynb)
 
-    if num_records == 0:
-        raise FileNotFoundError('No data were provided.')
-
-    # Extract the features and labels from the data.
-    if verbose:
-        print('Extracting features and labels from the data...')
-
-    # Iterate over the records to extract the features and labels.
-    features = list()
-    labels = list()
-    for i in range(num_records):
-        if verbose:
-            width = len(str(num_records))
-            print(f'- {i+1:>{width}}/{num_records}: {records[i]}...')
-
-        record = os.path.join(data_folder, records[i])
-        age, sex, source, signal_mean, signal_std = extract_features(record)
-        label = load_label(record)
-
-        # Store the features and labels, but skip most of the CODE-15% data because there are many records, and the labels are weak.
-        # You can treat the different data sources however you might like in your training code.
-        if source != 'CODE-15%' or (i % 10) == 0:
-            features.append(np.concatenate((age, sex, signal_mean, signal_std)))
-            labels.append(label)
-
-    features = np.asarray(features, dtype=np.float32)
-    labels = np.asarray(labels, dtype=bool)
-
-    # Train the models on the features.
-    if verbose:
-        print('Training the model on the data...')
-
-    # This very simple model trains a random forest model with very simple features.
-
-    # Define the parameters for the random forest classifier and regressor.
-    n_estimators = 12  # Number of trees in the forest.
-    max_leaf_nodes = 34  # Maximum number of leaf nodes in each tree.
-    random_state = 56  # Random state; set for reproducibility.
-
-    # Fit the model.
-    model = RandomForestClassifier(
-        n_estimators=n_estimators, max_leaf_nodes=max_leaf_nodes, random_state=random_state).fit(features, labels)
-
-    # Create a folder for the model if it does not already exist.
+    The checkpoints produced by that pipeline are saved to model_folder
+    via save_model(). This function copies them here if already trained,
+    or raises an error directing the user to run the pipeline.
+    """
     os.makedirs(model_folder, exist_ok=True)
+    checkpoint_dir = _PROJECT_ROOT / 'checkpoints'
 
-    # Save the model.
-    save_model(model_folder, model)
+    # Check if pre-trained checkpoints exist
+    fold_paths = [checkpoint_dir / f'fold{i}_best.pt' for i in range(5)]
+    available_folds = [p for p in fold_paths if p.exists()]
+
+    if len(available_folds) == 0:
+        raise FileNotFoundError(
+            'No ChagaSight checkpoints found.\n'
+            'Run the full training pipeline:\n'
+            '  1. stmem_pretraining_1d_COMPLETE.py  (ST-MEM 1D pretraining)\n'
+            '  2. mae_pretraining_2d_COMPLETE.py    (MAE 2D pretraining)\n'
+            '  3. 10_train_fold_FINAL_v11.ipynb × 5 (one per fold)\n'
+            f'Expected checkpoints at: {checkpoint_dir}'
+        )
 
     if verbose:
-        print('Done.')
-        print()
+        print(f'Found {len(available_folds)}/5 fold checkpoints.')
 
-# Load your trained models. This function is *required*. You should edit this function to add your code, but do *not* change the
-# arguments of this function. If you do not train one of the models, then you can return None for the model.
+    # Copy checkpoints to model_folder
+    import shutil
+    for p in available_folds:
+        dest = Path(model_folder) / p.name
+        if not dest.exists():
+            shutil.copy2(p, dest)
+            if verbose:
+                print(f'  Copied {p.name} → {model_folder}')
+
+    # Save model config
+    config = {
+        'model_config': MODEL_CONFIG,
+        'n_folds': len(available_folds),
+        'threshold': DECISION_THRESHOLD,
+    }
+    with open(Path(model_folder) / 'config.json', 'w') as f:
+        json.dump(config, f, indent=2)
+
+    if verbose:
+        print(f'Model saved to {model_folder}')
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Required function 2: load_model
+# ────────────────────────────────────────────────────────────────────────────
+
 def load_model(model_folder, verbose):
-    model_filename = os.path.join(model_folder, 'model.sav')
-    model = joblib.load(model_filename)
-    return model
+    """
+    Load the ensemble of 5 fold models and return a dict for run_model.
+    """
+    model_folder = Path(model_folder)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-# Run your trained model. This function is *required*. You should edit this function to add your code, but do *not* change the
-# arguments of this function.
+    if verbose:
+        print(f'Loading ChagaSight ensemble from {model_folder} on {device}')
+
+    # Load config
+    config_path = model_folder / 'config.json'
+    threshold = DECISION_THRESHOLD
+    if config_path.exists():
+        with open(config_path) as f:
+            config = json.load(f)
+        threshold = config.get('threshold', DECISION_THRESHOLD)
+
+    # Load all available fold models
+    models = []
+    for fold in range(5):
+        ckpt_path = model_folder / f'fold{fold}_best.pt'
+        if not ckpt_path.exists():
+            if verbose:
+                print(f'  Fold {fold}: checkpoint not found, skipping')
+            continue
+
+        m = HybridChagasModel(**MODEL_CONFIG)
+        ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+        m.load_state_dict(ckpt['model_state_dict'])
+        m.to(device).eval()
+        models.append(m)
+
+        if verbose:
+            vs = ckpt.get('val_score', None)
+            score_str = f'{vs:.4f}' if vs is not None else 'n/a'
+            print(f'  Fold {fold}: loaded  (val_score={score_str})')
+
+    if not models:
+        raise RuntimeError(f'No fold checkpoints found in {model_folder}')
+
+    if verbose:
+        print(f'Loaded {len(models)} fold models')
+
+    return {
+        'models': models,
+        'device': device,
+        'threshold': threshold,
+    }
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Required function 3: run_model
+# ────────────────────────────────────────────────────────────────────────────
+
 def run_model(record, model, verbose):
-    # Load the model.
-    model = model['model']
+    """
+    Run inference on a single record.
 
-    # Extract the features.
-    age, sex, source, signal_mean, signal_std = extract_features(record)
-    features = np.concatenate((age, sex, signal_mean, signal_std)).reshape(1, -1)
+    Args:
+        record: path to WFDB record (without extension)
+        model:  dict from load_model()
+        verbose: print debug info
 
-    # Get the model outputs.
-    binary_output = model.predict(features)[0]
-    probability_output = model.predict_proba(features)[0][1]
+    Returns:
+        binary_output:      int (0 or 1)
+        probability_output: float in [0, 1]
+    """
+    models   = model['models']
+    device   = model['device']
+    threshold = model.get('threshold', DECISION_THRESHOLD)
+
+    # ── Load and preprocess ──────────────────────────────────────────────────
+    try:
+        signal_1d, image_2d, age_val, sex_val = _load_and_preprocess(record, verbose)
+    except Exception as e:
+        if verbose:
+            print(f'  Preprocessing failed for {record}: {e}')
+        return float('nan'), float('nan')
+
+    # ── Inference ────────────────────────────────────────────────────────────
+    signal_t = torch.from_numpy(signal_1d).float().unsqueeze(0).to(device)  # (1, 12, 1000)
+    image_t  = torch.from_numpy(image_2d).float().unsqueeze(0).to(device)   # (1, 3, 24, 2048)
+    age_t    = torch.tensor([age_val],  dtype=torch.float32).to(device)      # (1,)
+    sex_t    = torch.tensor([sex_val],  dtype=torch.float32).to(device)      # (1,)
+
+    fold_probs = []
+    with torch.no_grad():
+        for m in models:
+            out  = m(image_t, signal_t, age_t, sex_t)
+            prob = float(torch.sigmoid(out['logits']).cpu().item())
+            fold_probs.append(prob)
+
+    probability_output = float(np.mean(fold_probs))
+    binary_output      = int(probability_output >= threshold)
+
+    if verbose:
+        print(f'  {record}: prob={probability_output:.4f}  binary={binary_output}')
 
     return binary_output, probability_output
 
-################################################################################
-#
-# Optional functions. You can change or remove these functions and/or add new functions.
-#
-################################################################################
 
-# Extract your features.
-def extract_features(record):
-    header = load_header(record)
+# ────────────────────────────────────────────────────────────────────────────
+# Internal preprocessing
+# ────────────────────────────────────────────────────────────────────────────
 
-    # Extract the age from the record.
-    age = get_age(header)
-    age = np.array([age])
+def _load_and_preprocess(record, verbose=False):
+    """
+    Load a WFDB record and return (signal_1d, image_2d, age, sex).
 
-    # Extract the sex from the record and represent it as a one-hot encoded vector.
-    sex = get_sex(header)
-    sex_one_hot_encoding = np.zeros(3, dtype=bool)
-    if sex.casefold().startswith('f'):
-        sex_one_hot_encoding[0] = 1
-    elif sex.casefold().startswith('m'):
-        sex_one_hot_encoding[1] = 1
-    else:
-        sex_one_hot_encoding[2] = 1
+    signal_1d: (12, 1000) float32, z-score normalised, 100 Hz
+    image_2d:  (3, 24, 2048) float32 (already normalised 0-1 by PatchEmbed)
+    age:       float, age in centuries
+    sex:       float, 0.0=female 1.0=male 0.5=unknown
+    """
+    if not PREPROCESSING_AVAILABLE:
+        raise RuntimeError('Preprocessing modules not available')
+    if not MODEL_AVAILABLE:
+        raise RuntimeError('HybridChagasModel not available')
 
-    # Extract the source from the record (but do not use it as a feature).
-    source = get_source(header)
-
-    # Load the signal data and fields. Try fields.keys() to see the fields, e.g., fields['fs'] is the sampling frequency.
+    # ── Load WFDB ────────────────────────────────────────────────────────────
+    header  = load_header(record)
     signal, fields = load_signals(record)
+
     channels = fields['sig_name']
+    fs_orig  = fields['fs']
 
-    # Reorder the channels in case they are in a different order in the signal data.
-    reference_channels = ['I', 'II', 'III', 'AVR', 'AVL', 'AVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
-    num_channels = len(reference_channels)
-    signal = reorder_signal(signal, channels, reference_channels)
+    # Reorder to standard 12-lead order
+    signal = reorder_signal(signal, channels, REFERENCE_LEADS)  # (T, 12)
+    signal = signal.T.astype(np.float32)                        # (12, T)
 
-    # Compute two per-channel features as examples.
-    signal_mean = np.zeros(num_channels)
-    signal_std = np.zeros(num_channels)
+    # ── Demographics ─────────────────────────────────────────────────────────
+    age_raw = get_age(header)
+    age_val = float(age_raw) / 100.0 if (age_raw is not None and _is_number(age_raw)) else 0.5
 
-    for i in range(num_channels):
-        num_finite_samples = np.sum(np.isfinite(signal[:, i]))
-        if num_finite_samples > 0:
-            signal_mean[i] = np.nanmean(signal)
-        else:
-            signal_mean = 0.0
-        if num_finite_samples > 1:
-            signal_std[i] = np.nanstd(signal)
-        else:
-            signal_std = 0.0
+    sex_raw = get_sex(header)
+    if sex_raw is not None and str(sex_raw).strip().lower().startswith('m'):
+        sex_val = 1.0
+    elif sex_raw is not None and str(sex_raw).strip().lower().startswith('f'):
+        sex_val = 0.0
+    else:
+        sex_val = 0.5   # unknown
 
-    # Return the features.
+    # ── Baseline removal ─────────────────────────────────────────────────────
+    signal = remove_baseline(signal, fs=fs_orig)
 
-    return age, sex_one_hot_encoding, source, signal_mean, signal_std
+    # ── Resample → 100 Hz ────────────────────────────────────────────────────
+    signal_100 = resample_signal(signal, original_fs=float(fs_orig), target_fs=float(TARGET_FS_1D))
+    signal_100 = pad_or_trim(signal_100, TARGET_LEN)  # (12, 1000)
 
-# Save your trained model.
+    # ── 1D signal: z-score normalisation ─────────────────────────────────────
+    signal_1d = normalize_per_lead(signal_100, method='zscore', clip_std=3.0)
+
+    # ── 2D image: build from signal (already at 100Hz, 10s) ──────────────────
+    # build_2d_image expects (12, T) float, clipped to [-3, 3]
+    signal_clipped = np.clip(signal_100, -3.0, 3.0)
+    image_2d = build_2d_image(signal_clipped, target_width=TARGET_LEN_2D, random_crop=False)
+    # image_2d is (3, 24, 2048) uint8 → convert to float32 for tensor
+    image_2d = image_2d.astype(np.float32)
+
+    return signal_1d, image_2d, age_val, sex_val
+
+
+def _is_number(x):
+    try:
+        float(x)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Optional: save model (called by train_model)
+# ────────────────────────────────────────────────────────────────────────────
+
 def save_model(model_folder, model):
-    d = {'model': model}
-    filename = os.path.join(model_folder, 'model.sav')
-    joblib.dump(d, filename, protocol=0)
+    """Save model config. Actual weights already saved by trainer.py."""
+    import json
+    os.makedirs(model_folder, exist_ok=True)
+    config = {
+        'model_config': MODEL_CONFIG,
+        'n_folds': len(model.get('models', [])) if isinstance(model, dict) else 5,
+        'threshold': model.get('threshold', DECISION_THRESHOLD) if isinstance(model, dict) else DECISION_THRESHOLD,
+    }
+    with open(Path(model_folder) / 'config.json', 'w') as f:
+        json.dump(config, f, indent=2)
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Quick self-test
+# ────────────────────────────────────────────────────────────────────────────
+
+if __name__ == '__main__':
+    print('team_code.py self-test (interface check only)')
+    print(f'  PROJECT_ROOT: {_PROJECT_ROOT}')
+    print(f'  PREPROCESSING_AVAILABLE: {PREPROCESSING_AVAILABLE}')
+    print(f'  MODEL_AVAILABLE: {MODEL_AVAILABLE}')
+    print(f'  Required functions: train_model ✓  load_model ✓  run_model ✓')
+    print(f'  Decision threshold: {DECISION_THRESHOLD}')

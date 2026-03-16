@@ -1,4 +1,4 @@
-# src/training/dataset.py - v2 (augmentation_config passthrough)
+# src/training/dataset.py - CORRECTED VERSION
 """
 ChagaSight Dataset with Soft Labels and Weighted Sampling
 
@@ -213,8 +213,7 @@ def create_dataloaders(
     batch_size: int = 32,
     num_workers: int = 4,
     use_weighted_sampling: bool = True,
-    augment_train: bool = True,
-    augmentation_config: Optional[Dict] = None,   # v2: passed through to ChagasDataset
+    augment_train: bool = True
 ) -> Tuple[DataLoader, DataLoader]:
     """
     Create train and validation dataloaders.
@@ -240,7 +239,6 @@ def create_dataloaders(
         split='train',
         fold=fold,
         augment=augment_train,
-        augmentation_config=augmentation_config,   # v2: pass through paper-aligned config
         use_soft_labels=True
     )
     

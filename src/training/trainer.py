@@ -117,7 +117,7 @@ class ChagasTrainer:
         warmup_iters: int = 200,
         # Phase-specific gradient accumulation (FIX #B)
         phase1_grad_accum: int = 4,
-        phase2_grad_accum: int = 1,
+        phase2_grad_accum: int = 2,   # v11: scaled for eff.batch=32 with batch_size=16
         # Legacy: single accum for both phases (overrides if provided explicitly)
         grad_accum_steps: Optional[int] = None,
         # Val subset (FIX #A)
@@ -293,7 +293,7 @@ class ChagasTrainer:
         with autocast('cuda', enabled=self.use_amp):
             outputs = self.model(images, signals, ages, sexes)
             losses  = self.criterion(
-                outputs['logits'].squeeze(), labels,
+                outputs['logits'].squeeze(-1), labels,
                 outputs['aligned_2d_features'], outputs['fm_features'],
             )
             loss = losses['total_loss'] / grad_accum
@@ -353,7 +353,7 @@ class ChagasTrainer:
                 with autocast('cuda', enabled=self.use_amp):
                     outputs = self.model(images, signals, ages, sexes)
                     losses  = self.criterion(
-                        outputs['logits'].squeeze(), labels,
+                        outputs['logits'].squeeze(-1), labels,
                         outputs['aligned_2d_features'], outputs['fm_features'],
                     )
 
@@ -527,15 +527,15 @@ class ChagasTrainer:
         Two-phase training with progressive FM unfreezing.
 
         Phase 1 (FM frozen):   2000 iters, LR=2e-4, accum=4 → ~35 min
-        Phase 2 (FM unfrozen): 12000 iters, differential LR, accum=1 → ~8h
+        Phase 2 (FM unfrozen): 24000 iters, differential LR, accum=2 → ~10-12h
         """
         print(f"\n{'='*68}")
         print(f"  ChagaSight Training — Fold {fold}")
         print(f"  Phase 1: LR={self.phase1_lr:.0e}  accum={self.phase1_grad_accum}"
-              f"  eff.batch={16*self.phase1_grad_accum}")
+              f"  eff.batch={self.train_loader.batch_size*self.phase1_grad_accum}")
         print(f"  Phase 2: LR={self.phase2_lr_low:.0e}/{self.phase2_lr_high:.0e}"
               f"  accum={self.phase2_grad_accum}"
-              f"  eff.batch={16*self.phase2_grad_accum}")
+              f"  eff.batch={self.train_loader.batch_size*self.phase2_grad_accum}")
         print(f"  Grad clip: {self.max_grad_norm}  |  Warmup: {self.warmup_iters}"
               f"  |  Val subset: {self.val_subset_size}  |  Perms(fast): {self.val_n_permutations}")
         print(f"{'='*68}")
@@ -553,7 +553,7 @@ class ChagasTrainer:
 
         # ── Phase 1 ─────────────────────────────────────────────────
         if start_phase == 1:
-            eta = self.phase1_iterations * (16 * self.phase1_grad_accum / 64) * 1.1 / 60
+            eta = self.phase1_iterations * (self.train_loader.batch_size * self.phase1_grad_accum / 64) * 1.1 / 60
             print(f"\n📌 PHASE 1: FM Frozen — {self.phase1_iterations} iters"
                   f" | ETA ~{eta:.0f} min")
 
@@ -577,7 +577,8 @@ class ChagasTrainer:
 
         # ── Phase 2 ─────────────────────────────────────────────────
         if start_phase == 2:
-            eta_h = self.phase2_iterations * 2.5 / 3600
+            # ETA: ~2.5s/iter at accum=1; scale inversely with accum (fewer forward passes/step)
+            eta_h = self.phase2_iterations * (2.5 / self.phase2_grad_accum) / 3600
             print(f"\n📌 PHASE 2: FM Unfrozen — {self.phase2_iterations} iters"
                   f" | ETA ~{eta_h:.1f}h")
             print(f"  LR — FM/2D: {self.phase2_lr_low:.1e}  |  Head: {self.phase2_lr_high:.1e}")
