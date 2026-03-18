@@ -301,7 +301,7 @@ class ViT1D_FM(nn.Module):
                 if v.shape[1] == self.num_patches + 1:
                     # Has CLS token - remove it
                     model_dict[k] = v[:, 1:, :]
-                    print(f"   ⚠️  Trimmed CLS token: {v.shape} → {model_dict[k].shape}")
+                    print(f"     Trimmed CLS token: {v.shape} → {model_dict[k].shape}")
                 else:
                     model_dict[k] = v
             
@@ -314,14 +314,14 @@ class ViT1D_FM(nn.Module):
         # ═══════════════════════════════════════════════════════════
         msg = self.load_state_dict(model_dict, strict=False)
         
-        print(f"\n✅ ST-MEM weights loaded successfully:")
+        print(f"\n ST-MEM weights loaded successfully:")
         print(f"   Loaded: {len(model_dict)} keys (was 6, now 145+ ✓)")
         print(f"   Missing: {len(msg.missing_keys)} keys (new components)")
         print(f"   Unexpected: {len(msg.unexpected_keys)} keys")
         
         # Show sample of loaded transformer weights
         transformer_keys = [k for k in model_dict.keys() if k.startswith('layers.')]
-        print(f"\n   ✓ Transformer layers loaded: {len(transformer_keys)} weights")
+        print(f"\n    Transformer layers loaded: {len(transformer_keys)} weights")
         print(f"   Sample keys:")
         for key in list(transformer_keys)[:3]:
             print(f"     - {key}: {model_dict[key].shape}")
@@ -340,10 +340,10 @@ class ViT1D_FM(nn.Module):
         
         if len(loaded_critical) < len(critical_keys):
             missing = [k for k in critical_keys if k not in model_dict]
-            print(f"   ⚠️  WARNING: Missing critical keys: {missing}")
+            print(f"     WARNING: Missing critical keys: {missing}")
             print(f"   This means pretrained weights did NOT load properly!")
         else:
-            print(f"   ✓ All critical transformer weights loaded successfully!")
+            print(f"   All critical transformer weights loaded successfully!")
         
         return msg
 
@@ -364,11 +364,11 @@ if __name__ == "__main__":
     
     features = model(signals, ages, sexes)
     
-    print(f"\n✓ Forward pass successful!")
+    print(f"\n Forward pass successful!")
     print(f"  Input: {signals.shape}")
     print(f"  Output: {features.shape}")
     assert features.shape == torch.Size([B, 768]), f"Expected ({B}, 768), got {features.shape}"
-    print(f"  ✓ Shape correct!")
+    print(f"   Shape correct!")
     
     print("\n" + "="*70)
     print("To test checkpoint loading, run:")

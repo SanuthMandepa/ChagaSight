@@ -64,7 +64,7 @@ if OFFICIAL_METRICS_AVAILABLE:
     print(f"✓ Official PhysioNet helper_code loaded from:")
     print(f"  {_HELPER_CODE_PATH}")
 else:
-    print("⚠️  helper_code.py not found — using approximate TPR@5% (less accurate).")
+    print("  helper_code.py not found — using approximate TPR@5% (less accurate).")
     print(f"   Expected at: {_SEARCH_PATHS[0] / 'helper_code.py'}")
 
 

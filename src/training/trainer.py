@@ -230,7 +230,7 @@ class ChagasTrainer:
                        if hasattr(self.val_loader, 'collate_fn') else None,
         )
 
-        print(f"  ✓ Val subset: {n_pos} positives + {n_neg} negatives "
+        print(f"   Val subset: {n_pos} positives + {n_neg} negatives "
               f"= {n_pos+n_neg} samples (stratified, guaranteed both classes)")
 
     # ── Freeze / Unfreeze ─────────────────────────────────────────────
@@ -239,13 +239,13 @@ class ChagasTrainer:
         for p in self.model.vit_1d_fm.parameters():
             p.requires_grad = False
         n = sum(p.numel() for p in self.model.vit_1d_fm.parameters())
-        print(f"✓ FM frozen  ({n:,} params frozen)")
+        print(f" FM frozen  ({n:,} params frozen)")
 
     def unfreeze_fm(self):
         for p in self.model.vit_1d_fm.parameters():
             p.requires_grad = True
         n = sum(p.numel() for p in self.model.vit_1d_fm.parameters())
-        print(f"✓ FM unfrozen  ({n:,} params now trainable)")
+        print(f" FM unfrozen  ({n:,} params now trainable)")
 
     # ── Optimisers ────────────────────────────────────────────────────
 
@@ -301,7 +301,7 @@ class ChagasTrainer:
         if not torch.isfinite(loss):
             self.skipped_batches += 1
             if self.skipped_batches <= 5 or self.skipped_batches % 20 == 0:
-                print(f"\n⚠️  Non-finite loss (total skips: {self.skipped_batches})")
+                print(f"\n  Non-finite loss (total skips: {self.skipped_batches})")
             optimizer.zero_grad()
             return float('nan'), train_iter
 
@@ -424,7 +424,7 @@ class ChagasTrainer:
         torch.save(state, self.checkpoint_dir / f'fold{fold}_latest.pt')
         if is_best:
             torch.save(state, self.checkpoint_dir / f'fold{fold}_best.pt')
-            print(f"\n  ✅ NEW BEST → TPR@5%={val_score:.4f}")
+            print(f"\n  NEW BEST → TPR@5%={val_score:.4f}")
 
     def load_checkpoint(self, path, optimizer=None):
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
@@ -438,7 +438,7 @@ class ChagasTrainer:
         self.skipped_batches   = ckpt.get('skipped_batches', 0)
         if self.scaler and 'scaler_state_dict' in ckpt:
             self.scaler.load_state_dict(ckpt['scaler_state_dict'])
-        print(f"✓ Resumed  Phase={self.current_phase}  Iter={self.current_iteration}"
+        print(f" Resumed  Phase={self.current_phase}  Iter={self.current_iteration}"
               f"  Best={self.best_val_score:.4f}")
         return ckpt
 
@@ -508,7 +508,7 @@ class ChagasTrainer:
         val_loss, metrics = self.validate(fast=False)
         val_score = metrics.get('tpr_5pct', 0.0)
         method = "OFFICIAL" if metrics.get('using_official') else "APPROX"
-        print(f"  ✓ Phase {phase} complete:")
+        print(f"   Phase {phase} complete:")
         print(f"    TPR@5%:  {val_score:.4f}  [{method}]")
         print(f"    AUROC:   {metrics.get('auroc',0):.4f}")
         print(f"    AUPRC:   {metrics.get('auprc',0):.4f}")
@@ -554,7 +554,7 @@ class ChagasTrainer:
         # ── Phase 1 ─────────────────────────────────────────────────
         if start_phase == 1:
             eta = self.phase1_iterations * (self.train_loader.batch_size * self.phase1_grad_accum / 64) * 1.1 / 60
-            print(f"\n📌 PHASE 1: FM Frozen — {self.phase1_iterations} iters"
+            print(f"\n PHASE 1: FM Frozen — {self.phase1_iterations} iters"
                   f" | ETA ~{eta:.0f} min")
 
             if start_iter == 0:
@@ -579,7 +579,7 @@ class ChagasTrainer:
         if start_phase == 2:
             # ETA: ~2.5s/iter at accum=1; scale inversely with accum (fewer forward passes/step)
             eta_h = self.phase2_iterations * (2.5 / self.phase2_grad_accum) / 3600
-            print(f"\n📌 PHASE 2: FM Unfrozen — {self.phase2_iterations} iters"
+            print(f"\n PHASE 2: FM Unfrozen — {self.phase2_iterations} iters"
                   f" | ETA ~{eta_h:.1f}h")
             print(f"  LR — FM/2D: {self.phase2_lr_low:.1e}  |  Head: {self.phase2_lr_high:.1e}")
 
@@ -604,7 +604,7 @@ class ChagasTrainer:
             print(f"  Final AUROC:            {final_metrics.get('auroc',0):.4f}")
             print(f"  Skipped batches (nan):  {self.skipped_batches}")
             if self.skipped_batches > 50:
-                print("  ⚠️  High skip count — check signal normalisation.")
+                print(" High skip count — check signal normalisation.")
             print(f"{'='*68}")
             return final_metrics
 

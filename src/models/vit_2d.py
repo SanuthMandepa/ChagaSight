@@ -4,7 +4,7 @@
 
 Paper: Kim et al. (2025) + Van Santvliet et al. (2025)
 
-✅ FIXED: MAE loader now properly unpacks nested OrderedDict structure
+ FIXED: MAE loader now properly unpacks nested OrderedDict structure
          to load all 145 transformer weights (not just 5 top-level keys)
 """
 
@@ -173,7 +173,7 @@ class ViT2D(nn.Module):
     
     def load_mae_pretrained(self, checkpoint_path, strict=False):
         """
-        ✅ FIXED: Load MAE pretrained weights with proper OrderedDict unpacking.
+         FIXED: Load MAE pretrained weights with proper OrderedDict unpacking.
         
         PROBLEM BEFORE:
         - Checkpoint contains nested OrderedDict: {'encoder': OrderedDict({...})}
@@ -188,7 +188,7 @@ class ViT2D(nn.Module):
         checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
         state_dict = checkpoint['model_state_dict']
         
-        print(f"\n🔄 Loading MAE weights from: {checkpoint_path}")
+        print(f"\n Loading MAE weights from: {checkpoint_path}")
         print(f"   Top-level checkpoint keys: {list(state_dict.keys())}")
         
         # ═══════════════════════════════════════════════════════════
@@ -241,7 +241,7 @@ class ViT2D(nn.Module):
                 if v.shape[1] == self.num_patches + 1:
                     # Has CLS token - remove it
                     model_dict[k] = v[:, 1:, :]
-                    print(f"   ⚠️  Trimmed CLS token: {v.shape} → {model_dict[k].shape}")
+                    print(f"     Trimmed CLS token: {v.shape} → {model_dict[k].shape}")
                 else:
                     model_dict[k] = v
             
@@ -254,7 +254,7 @@ class ViT2D(nn.Module):
         # ═══════════════════════════════════════════════════════════
         msg = self.load_state_dict(model_dict, strict=False)
         
-        print(f"\n✅ MAE weights loaded successfully:")
+        print(f"\n MAE weights loaded successfully:")
         print(f"   Loaded: {len(model_dict)} keys (was 5, now 145+ ✓)")
         print(f"   Missing: {len(msg.missing_keys)} keys (new components)")
         print(f"   Unexpected: {len(msg.unexpected_keys)} keys")
@@ -280,10 +280,10 @@ class ViT2D(nn.Module):
         
         if len(loaded_critical) < len(critical_keys):
             missing = [k for k in critical_keys if k not in model_dict]
-            print(f"   ⚠️  WARNING: Missing critical keys: {missing}")
+            print(f"     WARNING: Missing critical keys: {missing}")
             print(f"   This means pretrained weights did NOT load properly!")
         else:
-            print(f"   ✓ All critical transformer weights loaded successfully!")
+            print(f"    All critical transformer weights loaded successfully!")
         
         return msg
 
