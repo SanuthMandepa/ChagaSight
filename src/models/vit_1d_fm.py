@@ -4,7 +4,7 @@
 
 Paper: Van Santvliet et al. (2025)
 
-✅ FIXED: ST-MEM loader now properly unpacks nested OrderedDict structure
+FIXED: ST-MEM loader now properly unpacks nested OrderedDict structure
          to load all 145 transformer weights (not just 6 top-level keys)
 """
 
@@ -233,7 +233,7 @@ class ViT1D_FM(nn.Module):
     
     def load_stmem_pretrained(self, checkpoint_path, strict=False):
         """
-        ✅ FIXED: Load ST-MEM pretrained weights with proper OrderedDict unpacking.
+         FIXED: Load ST-MEM pretrained weights with proper OrderedDict unpacking.
         
         PROBLEM BEFORE:
         - Checkpoint contains nested OrderedDict: {'encoder': OrderedDict({...})}
@@ -248,7 +248,7 @@ class ViT1D_FM(nn.Module):
         checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
         state_dict = checkpoint['model_state_dict']
         
-        print(f"\n🔄 Loading ST-MEM weights from: {checkpoint_path}")
+        print(f"\n Loading ST-MEM weights from: {checkpoint_path}")
         print(f"   Top-level checkpoint keys: {list(state_dict.keys())}")
         
         # ═══════════════════════════════════════════════════════════
@@ -269,7 +269,7 @@ class ViT1D_FM(nn.Module):
                     flat_dict[new_key] = v
         
         flatten_dict(state_dict)
-        print(f"   ✓ Flattened to {len(flat_dict)} parameter tensors")
+        print(f"    Flattened to {len(flat_dict)} parameter tensors")
         
         # ═══════════════════════════════════════════════════════════
         # Step 2: Remap keys to match fine-tuning model structure

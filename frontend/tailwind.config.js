@@ -7,32 +7,57 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["'Work Sans'", "system-ui", "sans-serif"],
+        sans: ["'Manrope'", "system-ui", "sans-serif"],
       },
       colors: {
-        mint: {
-          50: "#F2FBF8",
-          100: "#DDF6EF",
-          200: "#B9ECDD",
-          300: "#86DDC6",
-          400: "#4EC8AA",
-          500: "#27A98D",
+        brand: {
+          50:  "#eef6ff",
+          100: "#d9ebff",
+          200: "#bcdcff",
+          300: "#8ec7ff",
+          400: "#59a7ff",
+          500: "#3383fc",
+          600: "#1d64f1",
+          700: "#154fde",
+          800: "#1840b4",
+          900: "#1a398e",
         },
-        lilac: {
-          50: "#F7F2FF",
-          100: "#EBDDFF",
-          200: "#D5B8FF",
-          300: "#BD8CFF",
-          400: "#A25BFF",
-          500: "#8736E6",
+        medical: {
+          teal:   "#0d9488",
+          cyan:   "#06b6d4",
+          navy:   "#0f172a",
+          deep:   "#0a0e27",
+          card:   "rgba(255,255,255,0.06)",
+          border: "rgba(255,255,255,0.10)",
         },
-        sky: {
-          50: "#F2F9FF",
-          100: "#DDF0FF",
-          200: "#B5DEFF",
-          300: "#7CC4FF",
-          400: "#3BA3FF",
-          500: "#167FE6",
+      },
+      animation: {
+        "float":      "float 6s ease-in-out infinite",
+        "float-slow": "float 8s ease-in-out infinite",
+        "fade-in-up": "fadeInUp 0.6s ease-out forwards",
+        "pulse-glow": "pulseGlow 2s ease-in-out infinite",
+        "shimmer":    "shimmer 2s linear infinite",
+        "gauge":      "gauge 1.2s ease-out forwards",
+      },
+      keyframes: {
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%":      { transform: "translateY(-20px)" },
+        },
+        fadeInUp: {
+          from: { opacity: "0", transform: "translateY(20px)" },
+          to:   { opacity: "1", transform: "translateY(0)" },
+        },
+        pulseGlow: {
+          "0%, 100%": { opacity: "1" },
+          "50%":      { opacity: "0.5" },
+        },
+        shimmer: {
+          "0%":   { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        gauge: {
+          from: { strokeDashoffset: "301.59" },
         },
       },
     },

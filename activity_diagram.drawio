@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="Antigravity" version="24.0.0">
+  <diagram id="activity" name="ChagaSight Activity Diagram">
+    <mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1200" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- SWIMLANES                                  -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="SL" value="" style="shape=table;startSize=0;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=0;align=center;resizeLast=1;fillColor=none;strokeColor=#999999;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;" vertex="1" parent="1">
+          <mxGeometry x="30" y="10" width="1100" height="2280" as="geometry"/>
+        </mxCell>
+
+        <!-- Swimlane Headers Row -->
+        <mxCell id="HR" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=1;strokeColor=#999999;" vertex="1" parent="SL">
+          <mxGeometry width="1100" height="2280" as="geometry"/>
+        </mxCell>
+        <mxCell id="C1" value="&lt;b&gt;User&lt;/b&gt;" style="swimlane;startSize=30;fillColor=#E8F5E9;strokeColor=#999999;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="HR">
+          <mxGeometry width="280" height="2280" as="geometry"/>
+        </mxCell>
+        <mxCell id="C2" value="&lt;b&gt;ChagaSight AI Pipeline&lt;/b&gt;" style="swimlane;startSize=30;fillColor=#FFF9C4;strokeColor=#999999;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="HR">
+          <mxGeometry x="280" width="480" height="2280" as="geometry"/>
+        </mxCell>
+        <mxCell id="C3" value="&lt;b&gt;Data Source / Model&lt;/b&gt;" style="swimlane;startSize=30;fillColor=#E3F2FD;strokeColor=#999999;fontStyle=1;fontSize=13;align=center;" vertex="1" parent="HR">
+          <mxGeometry x="760" width="340" height="2280" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- ACTIVITY NODES (positioned globally)       -->
+        <!-- ═══════════════════════════════════════════ -->
+
+        <!-- Initial Node -->
+        <mxCell id="N0" value="" style="ellipse;html=1;shape=mxgraph.flowchart.start_2;fillColor=#000000;fontSize=14;fontColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="150" y="60" width="30" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- A1: Select ECG Files -->
+        <mxCell id="A1" value="Select ECG files&#xa;(.hea + .dat)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCEDC8;strokeColor=#689F38;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="95" y="120" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="e01" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="N0" target="A1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A2: Enter demographics -->
+        <mxCell id="A2" value="Enter demographics&#xa;(Age, Sex)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCEDC8;strokeColor=#689F38;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="95" y="195" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A1" target="A2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A3: Select model type -->
+        <mxCell id="A3" value="Select model type&#xa;(2D / 1D / Hybrid)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCEDC8;strokeColor=#689F38;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="95" y="270" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="e23" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A2" target="A3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A4: Upload files -->
+        <mxCell id="A4" value="Upload WFDB files&#xa;via /api/predict" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="345" width="170" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="e34" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A3" target="A4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A5: Validate input -->
+        <mxCell id="A5" value="Validate WFDB input&#xa;(12-lead check, format)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="420" width="170" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="e45" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A4" target="A5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Decision: Valid? -->
+        <mxCell id="D1" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="460" y="495" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5d" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A5" target="D1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A_err: Show error -->
+        <mxCell id="AE" value="Show error&#xa;message" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFCDD2;strokeColor=#C62828;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="95" y="500" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ede" value="[Invalid]" style="endArrow=open;endFill=1;strokeColor=#C62828;fontSize=10;fontStyle=2;" edge="1" source="D1" target="AE" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Error final node -->
+        <mxCell id="NE" value="" style="ellipse;html=1;shape=mxgraph.flowchart.terminate;fillColor=#000000;strokeColor=#FFFFFF;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="145" y="565" width="25" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ene" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="AE" target="NE" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A6: Save uploaded files -->
+        <mxCell id="A6" value="Save uploaded files" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="410" y="570" width="150" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ed6" value="[Valid]" style="endArrow=open;endFill=1;strokeColor=#333;fontSize=10;fontStyle=2;" edge="1" source="D1" target="A6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A6b: Store to upload dir -->
+        <mxCell id="A6b" value="Store to /uploads/" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="850" y="570" width="150" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6b" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A6" target="A6b" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A7: Baseline removal -->
+        <mxCell id="A7" value="Baseline removal&#xa;(Bandpass 0.5–40 Hz)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="640" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e67" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A6" target="A7" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- FORK BAR 1: Split into 2D and 1D paths -->
+        <mxCell id="FK1" value="" style="shape=line;html=1;strokeWidth=4;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="340" y="715" width="300" height="5" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7f" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A7" target="FK1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- 2D Path Actions -->
+        <mxCell id="B1" value="Resample to 500 Hz" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="340" y="755" width="140" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="B2" value="Build 2D contour image&#xa;WCT → (3, 24, 2048)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="330" y="810" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="B3" value="2D-ViT Encoder&#xa;96 patches → 768-dim" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#90CAF9;strokeColor=#1565C0;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="330" y="875" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ef1" style="endArrow=open;endFill=1;strokeColor=#1976D2;" edge="1" source="FK1" target="B1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eb12" style="endArrow=open;endFill=1;strokeColor=#1976D2;" edge="1" source="B1" target="B2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eb23" style="endArrow=open;endFill=1;strokeColor=#1976D2;" edge="1" source="B2" target="B3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- 1D Path Actions -->
+        <mxCell id="C1a" value="Resample to 100 Hz" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E1BEE7;strokeColor=#6A1B9A;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="520" y="755" width="140" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="C2a" value="Z-score normalize&#xa;per lead, clip ±3σ" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#E1BEE7;strokeColor=#6A1B9A;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="515" y="810" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="C3a" value="1D-ViT FM Encoder&#xa;240 patches → 768-dim" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#CE93D8;strokeColor=#6A1B9A;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="510" y="875" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ef2" style="endArrow=open;endFill=1;strokeColor=#6A1B9A;" edge="1" source="FK1" target="C1a" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ec12" style="endArrow=open;endFill=1;strokeColor=#6A1B9A;" edge="1" source="C1a" target="C2a" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ec23" style="endArrow=open;endFill=1;strokeColor=#6A1B9A;" edge="1" source="C2a" target="C3a" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Load pretrained weights -->
+        <mxCell id="W1" value="Load pretrained weights&#xa;(MAE 2D / ST-MEM 1D)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="840" y="760" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ew1" style="endArrow=open;endFill=1;strokeColor=#1976D2;" edge="1" source="W1" target="B3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ew2" style="endArrow=open;endFill=1;strokeColor=#6A1B9A;" edge="1" source="W1" target="C3a" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Demographics encoding (1D path specific) -->
+        <mxCell id="C4a" value="Demographics Encoder&#xa;FiLM: γ·X + β" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#F48FB1;strokeColor=#C2185B;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="515" y="940" width="150" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec34" style="endArrow=open;endFill=1;strokeColor=#6A1B9A;" edge="1" source="C3a" target="C4a" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- JOIN BAR 1: Merge 2D and 1D -->
+        <mxCell id="JN1" value="" style="shape=line;html=1;strokeWidth=4;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1010" width="300" height="5" as="geometry"/>
+        </mxCell>
+        <mxCell id="ej1" style="endArrow=open;endFill=1;strokeColor=#1976D2;" edge="1" source="B3" target="JN1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ej2" style="endArrow=open;endFill=1;strokeColor=#6A1B9A;" edge="1" source="C4a" target="JN1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A8: REPA Alignment -->
+        <mxCell id="A8" value="REPA Alignment&#xa;(Cosine similarity loss)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFE082;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="395" y="1045" width="180" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ej3" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="JN1" target="A8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A9: Feature Fusion -->
+        <mxCell id="A9" value="Feature Fusion&#xa;Concat: [aligned_2D | FM] → 1536-dim" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFE082;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1115" width="230" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e89" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A8" target="A9" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A10: Classification -->
+        <mxCell id="A10" value="Classification Head&#xa;MLP: 1536→512→256→1&#xa;Sigmoid → P(Chagas)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="385" y="1185" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e910" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A9" target="A10" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Decision: model_type? -->
+        <mxCell id="D2" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="465" y="1270" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10d" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A10" target="D2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A11: Single model output -->
+        <mxCell id="A11" value="Single-fold prediction&#xa;threshold = 0.5" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1340" width="150" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ed2a" value="[2D or 1D]" style="endArrow=open;endFill=1;strokeColor=#333;fontSize=9;fontStyle=2;" edge="1" source="D2" target="A11" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A12: Ensemble -->
+        <mxCell id="A12" value="5-Fold Ensemble&#xa;Average probabilities&#xa;threshold = 0.2841" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#A5D6A7;strokeColor=#2E7D32;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="520" y="1330" width="160" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ed2b" value="[Hybrid]" style="endArrow=open;endFill=1;strokeColor=#333;fontSize=9;fontStyle=2;" edge="1" source="D2" target="A12" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Load fold checkpoints -->
+        <mxCell id="W2" value="Load model checkpoints&#xa;(5-fold .pt files)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="845" y="1340" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ew3" style="endArrow=open;endFill=1;strokeColor=#1976D2;" edge="1" source="W2" target="A12" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- JOIN BAR 2: Merge single/ensemble -->
+        <mxCell id="JN2" value="" style="shape=line;html=1;strokeWidth=4;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1420" width="280" height="5" as="geometry"/>
+        </mxCell>
+        <mxCell id="ej4" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A11" target="JN2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ej5" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A12" target="JN2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A13: Generate prediction -->
+        <mxCell id="A13" value="Generate prediction result&#xa;(probability, threshold, label)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="380" y="1460" width="210" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ej6" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="JN2" target="A13" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- FORK BAR 2: store + return -->
+        <mxCell id="FK2" value="" style="shape=line;html=1;strokeWidth=4;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1535" width="280" height="5" as="geometry"/>
+        </mxCell>
+        <mxCell id="e13f" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A13" target="FK2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A14: Store results -->
+        <mxCell id="A14" value="Store prediction results" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#BBDEFB;strokeColor=#1976D2;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="845" y="1565" width="170" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ef3" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="FK2" target="A14" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A15: Cleanup temp files -->
+        <mxCell id="A15" value="Cleanup temp files&#xa;(remove uploads)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="1575" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ef4" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="FK2" target="A15" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- JOIN BAR 3 -->
+        <mxCell id="JN3" value="" style="shape=line;html=1;strokeWidth=4;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1650" width="280" height="5" as="geometry"/>
+        </mxCell>
+        <mxCell id="ej7" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A14" target="JN3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ej8" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A15" target="JN3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A16: Return JSON response -->
+        <mxCell id="A16" value="Return JSON response&#xa;(probability, prediction,&#xa;interpretation)" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="390" y="1690" width="190" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ej9" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="JN3" target="A16" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- A17: View results -->
+        <mxCell id="A17" value="View prediction results&#xa;P(Chagas), Confidence" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#DCEDC8;strokeColor=#689F38;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="90" y="1780" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="e16_17" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A16" target="A17" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Decision: Another prediction? -->
+        <mxCell id="D3" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#689F38;" vertex="1" parent="1">
+          <mxGeometry x="150" y="1860" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e17d" style="endArrow=open;endFill=1;strokeColor=#333;" edge="1" source="A17" target="D3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Loop back -->
+        <mxCell id="eloop" value="[Yes, new ECG]" style="endArrow=open;endFill=1;strokeColor=#689F38;fontSize=9;fontStyle=2;curved=1;" edge="1" source="D3" target="A1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="50" y="1880"/><mxPoint x="50" y="145"/></Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Final Node -->
+        <mxCell id="NF" value="" style="ellipse;html=1;shape=mxgraph.flowchart.terminate;fillColor=#000000;strokeColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="155" y="1935" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="edf" value="[No]" style="endArrow=open;endFill=1;strokeColor=#333;fontSize=9;fontStyle=2;" edge="1" source="D3" target="NF" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

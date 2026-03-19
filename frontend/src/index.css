@@ -2,16 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global base styles */
-html,
-body,
-#root {
+/* ── Global ─────────────────────────────────────── */
+html, body, #root {
   height: 100%;
 }
-
 body {
   margin: 0;
-  font-family: "Work Sans", system-ui, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+  font-family: "Manrope", system-ui, sans-serif;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a1040 50%, #0d1a2d 100%);
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Glassmorphism utilities ────────────────────── */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* ── Scrollbar styling ──────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+/* ── ECG heartbeat line animation ───────────────── */
+@keyframes ecg-draw {
+  to { stroke-dashoffset: 0; }
+}
+.ecg-line {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: ecg-draw 2s ease-in-out forwards;
+}
+
+/* ── Drag-over highlight ────────────────────────── */
+.drop-active {
+  border-color: rgba(51, 131, 252, 0.8) !important;
+  background: rgba(51, 131, 252, 0.08) !important;
 }
