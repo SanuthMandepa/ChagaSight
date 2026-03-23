@@ -62,6 +62,13 @@ const MODEL_OPTIONS = [
   },
 ];
 
+/* ───────── Sample ECGs ───────── */
+const SAMPLE_ECGS = [
+  { dataset: "SAMITROP", label: "SAMITROP", desc: "Chagas endemic region (Brazil)", color: "brand", path: "samitrop", files: ["100726.hea", "100726.dat"] },
+  { dataset: "PTB-XL", label: "PTB-XL", desc: "European clinical database", color: "teal", path: "ptbxl", files: ["00001_lr.hea", "00001_lr.dat"] },
+  { dataset: "CODE-15%", label: "CODE-15%", desc: "Brazilian 12-lead database", color: "purple", path: "code15s", files: ["13.hea", "13.dat"] },
+];
+
 /* ───────── Feature highlights ───────── */
 const FEATURES = [
   { icon: "🧠", title: "Deep Learning", desc: "Vision Transformer architecture" },
@@ -177,6 +184,26 @@ export default function App() {
   };
 
   const removeFile = (name) => setFiles((prev) => prev.filter((f) => f.name !== name));
+
+  const [sampleLoading, setSampleLoading] = useState(null);
+  const loadSample = async (sample) => {
+    setSampleLoading(sample.dataset);
+    setResult(null); setError(""); setFiles([]);
+    try {
+      const loaded = await Promise.all(
+        sample.files.map(async (name) => {
+          const res = await fetch(`/samples/${sample.path}/${name}`);
+          const blob = await res.blob();
+          return new File([blob], name);
+        })
+      );
+      handleFiles(loaded);
+    } catch {
+      setError("Failed to load sample ECG.");
+    } finally {
+      setSampleLoading(null);
+    }
+  };
 
   /* drag & drop */
   const onDrag = (e) => { e.preventDefault(); e.stopPropagation(); };
@@ -514,6 +541,31 @@ export default function App() {
                     </svg>
                     Upload ECG Recording
                   </h3>
+
+                  {/* Sample ECG picker */}
+                  <div className="mb-4">
+                    <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Try a Sample ECG</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {SAMPLE_ECGS.map((s) => (
+                        <button
+                          key={s.dataset}
+                          onClick={() => loadSample(s)}
+                          disabled={sampleLoading !== null}
+                          className={`rounded-xl border-2 p-2.5 text-left transition-all duration-200 hover:shadow-sm
+                            ${s.color === "brand" ? "border-brand-200 bg-pastel-blue/40 hover:border-brand-400" :
+                              s.color === "teal" ? "border-teal-200 bg-pastel-mint/40 hover:border-teal-400" :
+                              "border-purple-200 bg-pastel-lilac/40 hover:border-purple-400"}
+                            ${sampleLoading === s.dataset ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
+                        >
+                          <div className={`text-[10px] font-extrabold mb-0.5
+                            ${s.color === "brand" ? "text-brand-600" : s.color === "teal" ? "text-medical-teal" : "text-purple-600"}`}>
+                            {sampleLoading === s.dataset ? "Loading…" : s.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400 leading-tight">{s.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   <div
                     ref={dropRef}
