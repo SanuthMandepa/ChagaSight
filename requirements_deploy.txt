@@ -1,0 +1,11 @@
+# CPU-only PyTorch (saves ~1 GB vs CUDA build, HF free tier has no GPU)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2+cpu
+
+flask==3.0.3
+flask-cors==4.0.1
+werkzeug==3.0.3
+
+wfdb==4.1.2
+numpy==2.0.2
+scipy==1.13.1

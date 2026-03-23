@@ -1,6 +1,7 @@
 # app.py — ChagaSight backend (Flask)
 # Serves three model modes: 2D-only, 1D-only, Hybrid ensemble
 
+import os
 import sys
 from pathlib import Path
 from typing import List, Tuple
@@ -104,44 +105,62 @@ def _load(model: nn.Module, path: Path) -> nn.Module:
     return model
 
 
+def _is_placeholder(path: Path) -> bool:
+    """Returns True if the file is a fake placeholder (not a real trained model)."""
+    try:
+        ckpt = torch.load(path, map_location="cpu", weights_only=False)
+        return bool(ckpt.get("placeholder", False))
+    except Exception:
+        return False
+
+
 model_2d = None
-_path_2d = ROOT / "checkpoints" / "fold4_2d_best.pt"
+_path_2d = ROOT / "models" / "model_2d.pt"
 if _path_2d.exists():
-    model_2d = _load(ViT2DClassifier().to(DEVICE), _path_2d)
-    print(f"[2D]  loaded {_path_2d.name}")
+    if _is_placeholder(_path_2d):
+        print(f"[2D]  placeholder file found — awaiting real checkpoint at {_path_2d}")
+    else:
+        try:
+            model_2d = _load(ViT2DClassifier().to(DEVICE), _path_2d)
+            print(f"[2D]  loaded {_path_2d.name}")
+        except Exception as e:
+            print(f"[2D]  failed to load {_path_2d.name}: {e}")
 else:
     print(f"[2D]  checkpoint not found: {_path_2d}")
 
 model_1d = None
-_path_1d = ROOT / "checkpoints" / "fold4_1d_best.pt"
+_path_1d = ROOT / "models" / "model_1d.pt"
 if _path_1d.exists():
-    model_1d = _load(ViT1DClassifier().to(DEVICE), _path_1d)
-    print(f"[1D]  loaded {_path_1d.name}")
+    if _is_placeholder(_path_1d):
+        print(f"[1D]  placeholder file found — awaiting real checkpoint at {_path_1d}")
+    else:
+        try:
+            model_1d = _load(ViT1DClassifier().to(DEVICE), _path_1d)
+            print(f"[1D]  loaded {_path_1d.name}")
+        except Exception as e:
+            print(f"[1D]  failed to load {_path_1d.name}: {e}")
 else:
     print(f"[1D]  checkpoint not found: {_path_1d}")
 
 hybrid_models: List[nn.Module] = []
 hybrid_threshold = 0.2841  # fallback
-_path_ensemble = ROOT / "models" / "finalt evaluataion 0_1_2_3" / "FINAL_ENSEMBLE_MODEL.pt"
+_path_ensemble = ROOT / "models" / "FINAL_ENSEMBLE_MODEL.pt"
 if _path_ensemble.exists():
-    _ens_ckpt = torch.load(_path_ensemble, map_location=DEVICE, weights_only=False)
-    _cfg = _ens_ckpt.get("model_config", {})
-    hybrid_threshold = float(_ens_ckpt.get("threshold", hybrid_threshold))
-    for _fm in _ens_ckpt["fold_models"]:
-        _m = HybridChagasModel(**_cfg).to(DEVICE)
-        _m.load_state_dict(_fm["model_state_dict"])
-        _m.eval()
-        hybrid_models.append(_m)
-        print(f"[HYB] loaded fold {_fm['fold']} from FINAL_ENSEMBLE_MODEL.pt")
-    print(f"[HYB] threshold from checkpoint: {hybrid_threshold:.6f}")
+    try:
+        _ens_ckpt = torch.load(_path_ensemble, map_location=DEVICE, weights_only=False)
+        _cfg = _ens_ckpt.get("model_config", {})
+        hybrid_threshold = float(_ens_ckpt.get("threshold", hybrid_threshold))
+        for _fm in _ens_ckpt["fold_models"]:
+            _m = HybridChagasModel(**_cfg).to(DEVICE)
+            _m.load_state_dict(_fm["model_state_dict"])
+            _m.eval()
+            hybrid_models.append(_m)
+            print(f"[HYB] loaded fold {_fm['fold']} from FINAL_ENSEMBLE_MODEL.pt")
+        print(f"[HYB] threshold from checkpoint: {hybrid_threshold:.6f}")
+    except Exception as e:
+        print(f"[HYB] failed to load FINAL_ENSEMBLE_MODEL.pt: {e}")
 else:
     print(f"[HYB] ensemble checkpoint not found: {_path_ensemble}")
-    for _fold in range(5):
-        _p = ROOT / "checkpoints" / f"fold{_fold}_best.pt"
-        if _p.exists():
-            _m = _load(HybridChagasModel().to(DEVICE), _p)
-            hybrid_models.append(_m)
-            print(f"[HYB] loaded fold{_fold}_best.pt (fallback)")
 
 print(f"\nDevice: {DEVICE}")
 print(f"Models ready — 2D: {'yes' if model_2d else 'no'} | "
@@ -152,10 +171,11 @@ print(f"Models ready — 2D: {'yes' if model_2d else 'no'} | "
 # Flask app
 # --------------------------------------------------
 app = Flask(__name__)
-CORS(
-    app,
-    resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}},
-)
+_cors_origins = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173",
+).split(",")
+CORS(app, resources={r"/api/*": {"origins": _cors_origins}})
 
 ALLOWED_EXTENSIONS = {"hea", "dat", "mat"}
 
@@ -320,4 +340,6 @@ def predict():
 # Run
 # --------------------------------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5050, debug=True)
+    port = int(os.environ.get("PORT", 5050))
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=debug)

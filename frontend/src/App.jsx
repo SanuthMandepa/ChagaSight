@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:5050";
+
 /* ───────── Model options ───────── */
 const MODEL_OPTIONS = [
   {
@@ -154,7 +156,7 @@ export default function App() {
 
   /* health check */
   useEffect(() => {
-    fetch("http://127.0.0.1:5050/api/health")
+    fetch(`${API_BASE}/api/health`)
       .then((r) => r.ok && setApiOk(true))
       .catch(() => setApiOk(false));
   }, []);
@@ -201,7 +203,7 @@ export default function App() {
         fd.append("age", age || "50");
         fd.append("sex", sex);
       }
-      const res = await fetch("http://127.0.0.1:5050/api/predict", { method: "POST", body: fd });
+      const res = await fetch(`${API_BASE}/api/predict`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Prediction failed");
       setResult(data);
