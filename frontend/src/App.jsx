@@ -214,6 +214,9 @@ export default function App() {
     setDragActive(false);
     if (e.dataTransfer.files?.length) handleFiles(Array.from(e.dataTransfer.files));
   };
+  const onDropZoneKey = (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); }
+  };
 
   /* predict */
   const runPrediction = async () => {
@@ -275,15 +278,17 @@ export default function App() {
 
           <div className="flex items-center gap-4">
             {/* Tab buttons */}
-            <div className="hidden sm:flex items-center bg-surface-100 rounded-lg p-1">
+            <div className="flex items-center bg-surface-100 rounded-lg p-1" role="tablist" aria-label="Page sections">
               {[
                 { key: "analyze", label: "Analyze" },
                 { key: "about", label: "About" },
               ].map((tab) => (
                 <button
                   key={tab.key}
+                  role="tab"
+                  aria-selected={activeTab === tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200
+                  className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200
                     ${activeTab === tab.key
                       ? "bg-white text-brand-600 shadow-sm"
                       : "text-slate-400 hover:text-slate-600"
@@ -416,7 +421,7 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
               {/* LEFT COLUMN: Model + Demographics */}
-              <div className="lg:col-span-2 space-y-5">
+              <div className="lg:col-span-2 space-y-5" role="region" aria-label="Model configuration">
 
                 {/* MODEL SELECTOR */}
                 <div className="card shadow-card p-5">
@@ -426,37 +431,40 @@ export default function App() {
                     </svg>
                     Select Model
                   </h3>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3" role="radiogroup" aria-label="Model selection">
                     {MODEL_OPTIONS.map((opt) => {
                       const active = modelType === opt.id;
                       return (
                         <button
                           key={opt.id}
+                          role="radio"
+                          aria-checked={active}
+                          aria-label={`${opt.label}${opt.badge ? ", recommended" : ""}`}
                           onClick={() => { setModelType(opt.id); setResult(null); setError(""); }}
-                          className={`relative w-full text-left rounded-xl p-4 border-2 transition-all duration-300 group
+                          className={`relative w-full text-left rounded-xl p-3 sm:p-3 lg:p-4 border-2 transition-all duration-300 group
                             ${active
                               ? "model-active bg-pastel-blue/40"
                               : "border-surface-200 hover:border-brand-200 hover:bg-surface-50"
                             }`}
                         >
                           {opt.badge && (
-                            <span className="absolute -top-2.5 right-3 rounded-full bg-gradient-to-r from-brand-500 to-brand-600 px-2.5 py-0.5 text-[9px] font-bold text-white shadow-brand">
+                            <span className="absolute -top-2.5 right-3 rounded-full bg-gradient-to-r from-brand-500 to-brand-600 px-2.5 py-0.5 text-[9px] font-bold text-white shadow-brand" aria-hidden="true">
                               {opt.badge}
                             </span>
                           )}
-                          <div className="flex items-start gap-3">
+                          <div className="flex sm:flex-col lg:flex-row items-start sm:items-center lg:items-start gap-3 sm:gap-2 lg:gap-3">
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors
-                              ${active ? opt.iconBg : "bg-surface-100 group-hover:bg-surface-200"}`}>
+                              ${active ? opt.iconBg : "bg-surface-100 group-hover:bg-surface-200"}`} aria-hidden="true">
                               <div className={active ? opt.iconColor : "text-slate-400 group-hover:text-slate-500"}>
                                 {opt.icon}
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-sm text-slate-700">{opt.label}</div>
-                              <div className="text-[11px] text-slate-400 mt-0.5 leading-tight">{opt.description}</div>
+                              <div className="text-[11px] text-slate-400 mt-0.5 leading-tight block sm:hidden lg:block">{opt.description}</div>
 
-                              {/* Metric bars */}
-                              <div className="mt-3 space-y-2">
+                              {/* Metric bars — hidden on tablet to save horizontal space */}
+                              <div className="mt-3 space-y-2 block sm:hidden lg:block">
                                 <div>
                                   <div className="flex items-center justify-between text-[10px] mb-0.5">
                                     <span className="text-slate-400 font-medium">AUROC</span>
@@ -502,20 +510,22 @@ export default function App() {
                     </h3>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                        <label htmlFor="age-input" className="block text-xs font-semibold text-slate-500 mb-1.5">
                           Age <span className="text-slate-300 font-normal">(years)</span>
                         </label>
                         <input
+                          id="age-input"
                           type="number" min="0" max="120" placeholder="e.g. 45"
                           value={age} onChange={(e) => setAge(e.target.value)}
                           className="w-full rounded-xl bg-surface-50 border border-surface-200 px-4 py-3 text-sm text-slate-700 placeholder:text-slate-300 transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                        <label htmlFor="sex-select" className="block text-xs font-semibold text-slate-500 mb-1.5">
                           Biological Sex
                         </label>
                         <select
+                          id="sex-select"
                           value={sex} onChange={(e) => setSex(e.target.value)}
                           className="w-full rounded-xl bg-surface-50 border border-surface-200 px-4 py-3 text-sm text-slate-700 transition-all appearance-none cursor-pointer"
                         >
@@ -530,7 +540,7 @@ export default function App() {
               </div>
 
               {/* RIGHT COLUMN: Upload + Predict + Result */}
-              <div className="lg:col-span-3 space-y-5">
+              <div className="lg:col-span-3 space-y-5" role="region" aria-label="ECG upload and results">
 
                 {/* FILE UPLOAD */}
                 <div className="card shadow-card p-5">
@@ -544,24 +554,26 @@ export default function App() {
 
                   {/* Sample ECG picker */}
                   <div className="mb-4">
-                    <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Try a Sample ECG</p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2" id="sample-label">Try a Sample ECG</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="group" aria-labelledby="sample-label">
                       {SAMPLE_ECGS.map((s) => (
                         <button
                           key={s.dataset}
                           onClick={() => loadSample(s)}
                           disabled={sampleLoading !== null}
-                          className={`rounded-xl border-2 p-2.5 text-left transition-all duration-200 hover:shadow-sm
+                          aria-label={`Load sample ECG from ${s.label} dataset`}
+                          aria-busy={sampleLoading === s.dataset}
+                          className={`rounded-xl border-2 p-3 text-left transition-all duration-200 hover:shadow-sm min-h-[56px]
                             ${s.color === "brand" ? "border-brand-200 bg-pastel-blue/40 hover:border-brand-400" :
                               s.color === "teal" ? "border-teal-200 bg-pastel-mint/40 hover:border-teal-400" :
                               "border-purple-200 bg-pastel-lilac/40 hover:border-purple-400"}
                             ${sampleLoading === s.dataset ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
                         >
-                          <div className={`text-[10px] font-extrabold mb-0.5
+                          <div className={`text-xs font-extrabold mb-0.5
                             ${s.color === "brand" ? "text-brand-600" : s.color === "teal" ? "text-medical-teal" : "text-purple-600"}`}>
                             {sampleLoading === s.dataset ? "Loading…" : s.label}
                           </div>
-                          <div className="text-[10px] text-slate-400 leading-tight">{s.desc}</div>
+                          <div className="text-[11px] text-slate-400 leading-tight">{s.desc}</div>
                         </button>
                       ))}
                     </div>
@@ -569,13 +581,18 @@ export default function App() {
 
                   <div
                     ref={dropRef}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Upload ECG files. Drag and drop or press Enter to browse"
                     onDragEnter={onDragIn} onDragLeave={onDragOut} onDragOver={onDrag} onDrop={onDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`rounded-xl border-2 border-dashed cursor-pointer transition-all duration-300 p-8 text-center group
+                    onKeyDown={onDropZoneKey}
+                    className={`rounded-xl border-2 border-dashed cursor-pointer transition-all duration-300 p-6 sm:p-8 text-center group
                       ${dragActive ? "drop-active" : "border-surface-300 hover:border-brand-300 hover:bg-pastel-blue/30"}`}
                   >
                     <input
                       ref={fileInputRef} type="file" multiple accept=".hea,.dat,.mat"
+                      aria-label="Select ECG files"
                       onChange={(e) => handleFiles(Array.from(e.target.files))}
                       className="hidden"
                     />
@@ -611,9 +628,11 @@ export default function App() {
                               <span className="text-xs text-slate-400 ml-2">({(f.size / 1024).toFixed(0)} KB)</span>
                             </div>
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); removeFile(f.name); }}
-                            className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-300 hover:text-red-400 transition-all">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeFile(f.name); }}
+                            aria-label={`Remove ${f.name}`}
+                            className="w-10 h-10 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-300 hover:text-red-400 transition-all">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4" aria-hidden="true">
                               <path d="M18 6L6 18M6 6l12 12" />
                             </svg>
                           </button>
@@ -692,7 +711,10 @@ export default function App() {
 
                 {/* RESULT */}
                 {result && (
-                  <div className={`card shadow-elevated p-6 space-y-5 animate-slide-up border-2
+                  <div
+                    aria-live="polite"
+                    aria-atomic="true"
+                    className={`card shadow-elevated p-6 space-y-5 animate-slide-up border-2
                     ${isPositive ? "border-red-200 bg-red-50/50" : "border-emerald-200 bg-emerald-50/50"}`}>
 
                     {/* Header */}
@@ -734,7 +756,7 @@ export default function App() {
                     </div>
 
                     {/* Metadata */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       {[
                         { label: "Record", value: result.record },
                         { label: "Model", value: <span className="capitalize">{result.model_type}{result.folds_used > 1 && <span className="text-slate-300"> ({result.folds_used}F)</span>}</span> },
