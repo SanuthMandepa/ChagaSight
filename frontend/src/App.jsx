@@ -248,17 +248,17 @@ export default function App() {
   const pct = result ? (result.probability * 100).toFixed(1) : null;
 
   return (
-    <div className="relative min-h-screen">
-      {/* ── Decorative background blobs ── */}
-      <Blob className="w-[500px] h-[500px] bg-brand-200/40 -top-48 -left-48 animate-float" />
-      <Blob className="w-[400px] h-[400px] bg-pastel-mint/50 bottom-20 -right-48 animate-float-slow" />
-      <Blob className="w-[300px] h-[300px] bg-pastel-lilac/40 top-1/2 left-1/3 animate-float" />
+    <div className="relative min-h-screen overflow-x-hidden">
+      {/* ── Decorative background blobs (% sizes to avoid overflow) ── */}
+      <Blob className="w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-brand-200/40 -top-[12vw] -left-[12vw] animate-float" />
+      <Blob className="w-[50vw] h-[50vw] max-w-[400px] max-h-[400px] bg-pastel-mint/50 bottom-20 -right-[10vw] animate-float-slow" />
+      <Blob className="w-[40vw] h-[40vw] max-w-[300px] max-h-[300px] bg-pastel-lilac/40 top-1/2 left-1/3 animate-float" />
 
       {/* ── Main container ── */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
         {/* ══════════ NAVIGATION BAR ══════════ */}
-        <nav className="card shadow-card px-6 py-4 flex items-center justify-between mb-8 animate-fade-in-up">
+        <nav className="card shadow-card px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 mb-8 animate-fade-in-up">
           <div className="flex items-center gap-3">
             {/* Logo heart */}
             <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-brand">
@@ -300,7 +300,7 @@ export default function App() {
             </div>
 
             {/* API status */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-50 border border-surface-200">
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full bg-surface-50 border border-surface-200 flex-shrink-0">
               <span className={`w-2 h-2 rounded-full ${
                 apiOk === true ? "bg-medical-green animate-pulse-soft" :
                 apiOk === false ? "bg-medical-red" : "bg-medical-orange animate-pulse-soft"
