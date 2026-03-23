@@ -121,14 +121,27 @@ else:
     print(f"[1D]  checkpoint not found: {_path_1d}")
 
 hybrid_models: List[nn.Module] = []
-for _fold in range(5):
-    _p = ROOT / "checkpoints" / f"fold{_fold}_best.pt"
-    if _p.exists():
-        _m = _load(HybridChagasModel().to(DEVICE), _p)
+hybrid_threshold = 0.2841  # fallback
+_path_ensemble = ROOT / "models" / "finalt evaluataion 0_1_2_3" / "FINAL_ENSEMBLE_MODEL.pt"
+if _path_ensemble.exists():
+    _ens_ckpt = torch.load(_path_ensemble, map_location=DEVICE, weights_only=False)
+    _cfg = _ens_ckpt.get("model_config", {})
+    hybrid_threshold = float(_ens_ckpt.get("threshold", hybrid_threshold))
+    for _fm in _ens_ckpt["fold_models"]:
+        _m = HybridChagasModel(**_cfg).to(DEVICE)
+        _m.load_state_dict(_fm["model_state_dict"])
+        _m.eval()
         hybrid_models.append(_m)
-        print(f"[HYB] loaded fold{_fold}_best.pt")
-    else:
-        print(f"[HYB] checkpoint not found: {_p.name}")
+        print(f"[HYB] loaded fold {_fm['fold']} from FINAL_ENSEMBLE_MODEL.pt")
+    print(f"[HYB] threshold from checkpoint: {hybrid_threshold:.6f}")
+else:
+    print(f"[HYB] ensemble checkpoint not found: {_path_ensemble}")
+    for _fold in range(5):
+        _p = ROOT / "checkpoints" / f"fold{_fold}_best.pt"
+        if _p.exists():
+            _m = _load(HybridChagasModel().to(DEVICE), _p)
+            hybrid_models.append(_m)
+            print(f"[HYB] loaded fold{_fold}_best.pt (fallback)")
 
 print(f"\nDevice: {DEVICE}")
 print(f"Models ready — 2D: {'yes' if model_2d else 'no'} | "
@@ -231,7 +244,7 @@ def health():
         "models": {
             "2d": model_2d is not None,
             "1d": model_1d is not None,
-            "hybrid": {"folds_loaded": len(hybrid_models)},
+            "hybrid": {"folds_loaded": len(hybrid_models), "threshold": hybrid_threshold},
         },
     })
 
@@ -279,7 +292,7 @@ def predict():
                     for m in hybrid_models
                 ]
             prob = float(sum(probs) / len(probs))
-            threshold = 0.2841  # Youden J optimal
+            threshold = hybrid_threshold
             folds_used = len(hybrid_models)
 
         pred = int(prob >= threshold)
