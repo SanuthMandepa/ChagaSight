@@ -31,3 +31,5 @@ wandb/
 .venv
 
 data/official_wfdb/*
+
+Draw.io files/*
