@@ -1,0 +1,264 @@
+<mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1600" math="0" shadow="1">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ═══════════════════════════════════════════════════════
+         CENTRAL NODE
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="center" value="&lt;b&gt;ChagaSight&lt;/b&gt;&lt;br&gt;Self-Supervised Dual-Pathway&lt;br&gt;Vision Transformer Ensemble&lt;br&gt;for ECG-Based Chagas Screening" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1F3864;strokeColor=#0D2137;fontColor=#FFFFFF;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;shadow=1;arcSize=50;" vertex="1" parent="1">
+      <mxGeometry x="850" y="650" width="300" height="160" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BRANCH 1 — CHAGAS EPIDEMIOLOGY  (top-left)  #C0392B red
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="b1" value="&lt;b&gt;1. Chagas Disease&lt;br&gt;Epidemiology &amp; Diagnosis&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C0392B;strokeColor=#922B21;fontColor=#FFFFFF;fontSize=12;fontStyle=1;align=center;arcSize=20;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="220" y="160" width="260" height="80" as="geometry" />
+    </mxCell>
+    <!-- Sub-nodes B1 -->
+    <mxCell id="b1_1" value="6–7 million infected globally;&lt;br&gt;70M+ at risk in the Americas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1948A;strokeColor=#C0392B;fontColor=#2C0000;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="30" y="80" width="230" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b1_2" value="20–30% develop Chronic&lt;br&gt;Chagas Cardiomyopathy (CCC)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1948A;strokeColor=#C0392B;fontColor=#2C0000;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="30" y="160" width="230" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b1_3" value="Under-diagnosis: &lt;10% detected;&lt;br&gt;serological testing costly &amp; scarce" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1948A;strokeColor=#C0392B;fontColor=#2C0000;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="30" y="240" width="230" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b1_4" value="Migration to non-endemic regions&lt;br&gt;(Europe, North America)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1948A;strokeColor=#C0392B;fontColor=#2C0000;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="30" y="320" width="230" height="56" as="geometry" />
+    </mxCell>
+    <!-- Edges B1 -->
+    <mxCell id="e_c_b1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#C0392B;strokeWidth=3;startArrow=none;endArrow=block;endFill=1;" edge="1" source="center" target="b1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b1_1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#C0392B;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b1" target="b1_1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b1_2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#C0392B;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b1" target="b1_2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b1_3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#C0392B;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b1" target="b1_3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b1_4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#C0392B;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b1" target="b1_4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BRANCH 2 — ECG SCREENING SIGNAL  (top-centre)  #1A7A4A green
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="b2" value="&lt;b&gt;2. ECG as a&lt;br&gt;Screening Signal&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1A7A4A;strokeColor=#145C38;fontColor=#FFFFFF;fontSize=12;fontStyle=1;align=center;arcSize=20;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="650" y="60" width="260" height="80" as="geometry" />
+    </mxCell>
+    <mxCell id="b2_1" value="RBBB + LAFB + AV block:&lt;br&gt;hallmark CCC conduction pattern" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82E0AA;strokeColor=#1A7A4A;fontColor=#0A3320;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="490" y="30" width="230" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b2_2" value="Ventricular ectopy, AF,&lt;br&gt;repolarisation abnormalities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82E0AA;strokeColor=#1A7A4A;fontColor=#0A3320;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="740" y="30" width="230" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b2_3" value="Non-invasive, low-cost,&lt;br&gt;widely available in primary care" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82E0AA;strokeColor=#1A7A4A;fontColor=#0A3320;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="490" y="100" width="230" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b2_4" value="Spatial cross-lead co-occurrences&lt;br&gt;define CCC pattern (motivates 2D)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#82E0AA;strokeColor=#1A7A4A;fontColor=#0A3320;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="740" y="100" width="230" height="56" as="geometry" />
+    </mxCell>
+    <!-- Edges B2 -->
+    <mxCell id="e_c_b2" style="edgeStyle=orthogonalEdgeStyle;exitX=0.3;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeColor=#1A7A4A;strokeWidth=3;startArrow=none;endArrow=block;endFill=1;" edge="1" source="center" target="b2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b2_1" style="strokeColor=#1A7A4A;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b2" target="b2_1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b2_2" style="strokeColor=#1A7A4A;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b2" target="b2_2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b2_3" style="strokeColor=#1A7A4A;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b2" target="b2_3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b2_4" style="strokeColor=#1A7A4A;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b2" target="b2_4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BRANCH 3 — DATA REALITIES  (top-right)  #7D3C98 purple
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="b3" value="&lt;b&gt;3. Data Realities&lt;br&gt;PTB-XL | CODE-15% | SaMi-Trop&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7D3C98;strokeColor=#5B2C6F;fontColor=#FFFFFF;fontSize=12;fontStyle=1;align=center;arcSize=20;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1180" y="160" width="260" height="80" as="geometry" />
+    </mxCell>
+    <!-- Dataset sub-nodes -->
+    <mxCell id="b3_ptbxl" value="&lt;b&gt;PTB-XL&lt;/b&gt;&lt;br&gt;21,837 ECGs | European | 0% Chagas&lt;br&gt;Strong negative control | 100Hz/500Hz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7BDE2;strokeColor=#7D3C98;fontColor=#2C0050;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1480" y="60" width="260" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="b3_code" value="&lt;b&gt;CODE-15%&lt;/b&gt;&lt;br&gt;~345,000 ECGs | Brazilian | Self-reported labels&lt;br&gt;Weak labels → soft labelling (0.8/0.2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7BDE2;strokeColor=#7D3C98;fontColor=#2C0050;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1480" y="150" width="260" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="b3_sami" value="&lt;b&gt;SaMi-Trop&lt;/b&gt;&lt;br&gt;1,631 ECGs | Brazilian endemic | Serology-confirmed&lt;br&gt;All positive → no negatives" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7BDE2;strokeColor=#7D3C98;fontColor=#2C0050;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1480" y="240" width="260" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="b3_imb" value="Severe class imbalance: ~2.24% positive&lt;br&gt;across combined training set" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7BDE2;strokeColor=#7D3C98;fontColor=#2C0050;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1480" y="330" width="260" height="56" as="geometry" />
+    </mxCell>
+    <!-- Edges B3 -->
+    <mxCell id="e_c_b3" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#7D3C98;strokeWidth=3;startArrow=none;endArrow=block;endFill=1;" edge="1" source="center" target="b3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b3_1" style="strokeColor=#7D3C98;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b3" target="b3_ptbxl" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b3_2" style="strokeColor=#7D3C98;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b3" target="b3_code" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b3_3" style="strokeColor=#7D3C98;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b3" target="b3_sami" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b3_4" style="strokeColor=#7D3C98;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b3" target="b3_imb" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BRANCH 4 — MODELLING APPROACHES  (right)  #1A5276 navy
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="b4" value="&lt;b&gt;4. Modelling Approaches&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1A5276;strokeColor=#0D3349;fontColor=#FFFFFF;fontSize=12;fontStyle=1;align=center;arcSize=20;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1240" y="680" width="260" height="80" as="geometry" />
+    </mxCell>
+    <!-- Sub-branches for B4 -->
+    <!-- CNN -->
+    <mxCell id="b4_cnn" value="&lt;b&gt;CNN-Based Models&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E86C1;strokeColor=#1A5276;fontColor=#FFFFFF;fontSize=10;fontStyle=1;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="560" width="200" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="b4_cnn1" value="ResNet, ConvNeXt-1D,&lt;br&gt;VGG-style 1D CNNs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AED6F1;strokeColor=#2E86C1;fontColor=#0A1A30;fontSize=9;align=center;arcSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1780" y="540" width="200" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="b4_cnn2" value="CBAM, SE modules,&lt;br&gt;ResNet-CBAM ensembles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AED6F1;strokeColor=#2E86C1;fontColor=#0A1A30;fontSize=9;align=center;arcSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1780" y="600" width="200" height="44" as="geometry" />
+    </mxCell>
+    <!-- Transformer -->
+    <mxCell id="b4_trans" value="&lt;b&gt;Transformer &amp; ViT Models&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E86C1;strokeColor=#1A5276;fontColor=#FFFFFF;fontSize=10;fontStyle=1;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="640" width="200" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="b4_trans1" value="ViT (patch-based self-attention)&lt;br&gt;1D &amp; 2D variants" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AED6F1;strokeColor=#2E86C1;fontColor=#0A1A30;fontSize=9;align=center;arcSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1780" y="660" width="200" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="b4_trans2" value="CNN-Transformer hybrids&lt;br&gt;(local + global features)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AED6F1;strokeColor=#2E86C1;fontColor=#0A1A30;fontSize=9;align=center;arcSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1780" y="720" width="200" height="44" as="geometry" />
+    </mxCell>
+    <!-- SSL -->
+    <mxCell id="b4_ssl" value="&lt;b&gt;Self-Supervised Learning (SSL)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E86C1;strokeColor=#1A5276;fontColor=#FFFFFF;fontSize=10;fontStyle=1;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="720" width="200" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="b4_ssl1" value="MAE: 75% patch masking&lt;br&gt;+ pixel reconstruction (He et al. 2022)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AED6F1;strokeColor=#2E86C1;fontColor=#0A1A30;fontSize=9;align=center;arcSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1780" y="780" width="200" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="b4_ssl2" value="ST-MEM: per-lead spatial-temporal&lt;br&gt;decoupled masking for ECG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AED6F1;strokeColor=#2E86C1;fontColor=#0A1A30;fontSize=9;align=center;arcSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1780" y="840" width="200" height="44" as="geometry" />
+    </mxCell>
+    <mxCell id="b4_ssl3" value="Wave-MAE, DINO, HuBERT-ECG,&lt;br&gt;Biomarker auxiliary pretraining" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#AED6F1;strokeColor=#2E86C1;fontColor=#0A1A30;fontSize=9;align=center;arcSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1780" y="900" width="200" height="44" as="geometry" />
+    </mxCell>
+    <!-- Edges B4 -->
+    <mxCell id="e_c_b4" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#1A5276;strokeWidth=3;startArrow=none;endArrow=block;endFill=1;" edge="1" source="center" target="b4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b4_cnn" style="strokeColor=#2E86C1;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4" target="b4_cnn" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b4_trans" style="strokeColor=#2E86C1;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4" target="b4_trans" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b4_ssl" style="strokeColor=#2E86C1;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4" target="b4_ssl" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_cnn_1" style="strokeColor=#AED6F1;strokeWidth=1;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4_cnn" target="b4_cnn1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_cnn_2" style="strokeColor=#AED6F1;strokeWidth=1;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4_cnn" target="b4_cnn2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_trans_1" style="strokeColor=#AED6F1;strokeWidth=1;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4_trans" target="b4_trans1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_trans_2" style="strokeColor=#AED6F1;strokeWidth=1;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4_trans" target="b4_trans2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_ssl_1" style="strokeColor=#AED6F1;strokeWidth=1;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4_ssl" target="b4_ssl1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_ssl_2" style="strokeColor=#AED6F1;strokeWidth=1;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4_ssl" target="b4_ssl2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_ssl_3" style="strokeColor=#AED6F1;strokeWidth=1;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b4_ssl" target="b4_ssl3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BRANCH 5 — EVALUATION & CLINICAL UTILITY  (bottom)  #B7770D gold
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="b5" value="&lt;b&gt;5. Evaluation &amp; Clinical Utility&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B7770D;strokeColor=#7D5309;fontColor=#FFFFFF;fontSize=12;fontStyle=1;align=center;arcSize=20;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="980" width="260" height="80" as="geometry" />
+    </mxCell>
+    <mxCell id="b5_1" value="&lt;b&gt;Primary: TPR@5%&lt;/b&gt;&lt;br&gt;True positive rate at 5% screening capacity&lt;br&gt;(PhysioNet permutation-based, 10K perms)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAD7A0;strokeColor=#B7770D;fontColor=#3D2300;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="540" y="1060" width="250" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="b5_2" value="&lt;b&gt;Secondary: AUROC, AUPRC&lt;/b&gt;&lt;br&gt;Discrimination &amp; precision-recall&lt;br&gt;under class imbalance (2.24% positive)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAD7A0;strokeColor=#B7770D;fontColor=#3D2300;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="1100" width="250" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="b5_3" value="Sensitivity, Specificity, F1, MCC&lt;br&gt;Youden-J optimal threshold" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAD7A0;strokeColor=#B7770D;fontColor=#3D2300;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1060" y="1060" width="250" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="b5_4" value="Number Needed to Screen (NNS)&lt;br&gt;Clinical decision support use-case" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAD7A0;strokeColor=#B7770D;fontColor=#3D2300;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="540" y="1150" width="250" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b5_5" value="5-fold stratified cross-validation&lt;br&gt;Per-dataset breakdown evaluation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAD7A0;strokeColor=#B7770D;fontColor=#3D2300;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1060" y="1150" width="250" height="56" as="geometry" />
+    </mxCell>
+    <!-- Edges B5 -->
+    <mxCell id="e_c_b5" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#B7770D;strokeWidth=3;startArrow=none;endArrow=block;endFill=1;" edge="1" source="center" target="b5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b5_1" style="strokeColor=#B7770D;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b5" target="b5_1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b5_2" style="strokeColor=#B7770D;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b5" target="b5_2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b5_3" style="strokeColor=#B7770D;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b5" target="b5_3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b5_4" style="strokeColor=#B7770D;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b5" target="b5_4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b5_5" style="strokeColor=#B7770D;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b5" target="b5_5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         BRANCH 6 — IDENTIFIED GAPS  (bottom-left)  #17202A dark
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="b6" value="&lt;b&gt;6. Identified Research Gaps&lt;br&gt;(Novelty of ChagaSight)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#17202A;strokeColor=#0D1117;fontColor=#FFFFFF;fontSize=12;fontStyle=1;align=center;arcSize=20;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="340" y="980" width="260" height="80" as="geometry" />
+    </mxCell>
+    <mxCell id="b6_1" value="No dual-pathway (1D+2D) ViT ensemble&lt;br&gt;with SSL specifically for Chagas screening" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#717D7E;strokeColor=#17202A;fontColor=#FFFFFF;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="1060" width="260" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b6_2" value="MAE (2D) + ST-MEM (1D) combined&lt;br&gt;pretraining not yet explored" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#717D7E;strokeColor=#17202A;fontColor=#FFFFFF;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="1130" width="260" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b6_3" value="Cross-dataset robustness under&lt;br&gt;severe imbalance + label noise" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#717D7E;strokeColor=#17202A;fontColor=#FFFFFF;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="340" y="1100" width="260" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b6_4" value="Soft labelling + SSL pretraining&lt;br&gt;not combined in prior Chagas work" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#717D7E;strokeColor=#17202A;fontColor=#FFFFFF;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="1200" width="260" height="56" as="geometry" />
+    </mxCell>
+    <mxCell id="b6_5" value="No REPA cross-modal alignment&lt;br&gt;for ECG dual-pathway Chagas models" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#717D7E;strokeColor=#17202A;fontColor=#FFFFFF;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="340" y="1180" width="260" height="56" as="geometry" />
+    </mxCell>
+    <!-- Edges B6 -->
+    <mxCell id="e_c_b6" style="edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.9;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#17202A;strokeWidth=3;startArrow=none;endArrow=block;endFill=1;" edge="1" source="center" target="b6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b6_1" style="strokeColor=#717D7E;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b6" target="b6_1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b6_2" style="strokeColor=#717D7E;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b6" target="b6_2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b6_3" style="strokeColor=#717D7E;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b6" target="b6_3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b6_4" style="strokeColor=#717D7E;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b6" target="b6_4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_b6_5" style="strokeColor=#717D7E;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="b6" target="b6_5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CHAGASIGHT ARCHITECTURE  (bottom-right)  #0E6655 teal
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="arch" value="&lt;b&gt;ChagaSight Architecture&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0E6655;strokeColor=#0B5345;fontColor=#FFFFFF;fontSize=12;fontStyle=1;align=center;arcSize=20;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1240" y="900" width="260" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="arch1" value="&lt;b&gt;1D Temporal Pathway&lt;/b&gt;&lt;br&gt;ST-MEM pretrained ViT&lt;br&gt;(12 leads × 20 patches = 240 tokens)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76D7C4;strokeColor=#0E6655;fontColor=#0A2E28;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="980" width="230" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="arch2" value="&lt;b&gt;2D Spatial Pathway&lt;/b&gt;&lt;br&gt;MAE pretrained ViT&lt;br&gt;WCT → (3, 24, 2048) image" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76D7C4;strokeColor=#0E6655;fontColor=#0A2E28;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="1065" width="230" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="arch3" value="&lt;b&gt;REPA Alignment&lt;/b&gt;&lt;br&gt;Cosine similarity loss&lt;br&gt;2D → FM feature space" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76D7C4;strokeColor=#0E6655;fontColor=#0A2E28;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="1150" width="230" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="arch4" value="&lt;b&gt;MLP Classifier&lt;/b&gt;&lt;br&gt;1536-d concat → 512 → 256 → 1&lt;br&gt;Asymmetric BCE (γ-=2, w_pos=10)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76D7C4;strokeColor=#0E6655;fontColor=#0A2E28;fontSize=10;align=center;arcSize=15;shadow=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="1235" width="230" height="70" as="geometry" />
+    </mxCell>
+    <!-- Edges Architecture -->
+    <mxCell id="e_c_arch" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#0E6655;strokeWidth=3;startArrow=none;endArrow=block;endFill=1;" edge="1" source="center" target="arch" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_arch_1" style="strokeColor=#0E6655;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="arch" target="arch1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_arch_2" style="strokeColor=#0E6655;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="arch" target="arch2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_arch_3" style="strokeColor=#0E6655;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="arch" target="arch3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e_arch_4" style="strokeColor=#0E6655;strokeWidth=2;startArrow=none;endArrow=open;endFill=0;" edge="1" source="arch" target="arch4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- Flow arrow: 1D → REPA → MLP -->
+    <mxCell id="flow1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#0E6655;strokeWidth=2;startArrow=none;endArrow=block;endFill=1;dashed=1;" edge="1" source="arch1" target="arch3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="flow2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#0E6655;strokeWidth=2;startArrow=none;endArrow=block;endFill=1;dashed=1;" edge="1" source="arch2" target="arch3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="flow3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#0E6655;strokeWidth=2;startArrow=none;endArrow=block;endFill=1;dashed=1;" edge="1" source="arch3" target="arch4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         LEGEND BOX
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="legend_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F9F9F9;strokeColor=#AAAAAA;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="30" y="430" width="260" height="180" as="geometry" />
+    </mxCell>
+    <mxCell id="legend_title" value="&lt;b&gt;LEGEND&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="100" y="435" width="120" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="leg1" value="■ Branch node" style="text;html=1;fillColor=#1F3864;fontColor=#FFFFFF;strokeColor=none;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
+      <mxGeometry x="40" y="463" width="230" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="leg2" value="■ First-level branch" style="text;html=1;fillColor=#C0392B;fontColor=#FFFFFF;strokeColor=none;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
+      <mxGeometry x="40" y="489" width="230" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="leg3" value="■ Sub-branch (concept)" style="text;html=1;fillColor=#F1948A;fontColor=#2C0000;strokeColor=none;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
+      <mxGeometry x="40" y="515" width="230" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="leg4" value="─── Primary connection" style="text;html=1;fillColor=none;fontColor=#000000;strokeColor=none;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
+      <mxGeometry x="40" y="541" width="230" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="leg5" value="- - - Data flow (architecture)" style="text;html=1;fillColor=none;fontColor=#0E6655;strokeColor=none;fontSize=10;align=left;spacingLeft=6;" vertex="1" parent="1">
+      <mxGeometry x="40" y="567" width="230" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════════
+         FIGURE CAPTION
+    ═══════════════════════════════════════════════════════ -->
+    <mxCell id="caption_text" value="Figure 2.1: Concept map of the literature review for ChagaSight: ECG-based Chagas Disease Screening with Self-Supervised Dual-Pathway Vision Transformers.&#xa;Central node (dark blue) → 6 first-level branches, each with colour-coded sub-nodes. Architecture branch (teal, bottom-right) shows the internal data flow." style="text;html=1;strokeColor=none;fillColor=#FFFDE7;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=2;strokeColor=#AAAAAA;" vertex="1" parent="1">
+      <mxGeometry x="390" y="1310" width="1060" height="60" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
