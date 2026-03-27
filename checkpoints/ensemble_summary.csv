@@ -1,0 +1,22 @@
+Metric,Value
+TPR @ 5% FPR (primary),0.4958  [0.4845-0.5068]
+AUROC,0.8707  [0.8665-0.8746]
+AUPRC,0.2589  [0.2489-0.2685]
+Sensitivity (recall),0.7765
+Specificity,0.8011
+Precision (PPV),0.0813
+NPV,0.9937
+F1 Score,0.1472
+MCC,0.2082
+Accuracy,0.8005
+Optimal threshold,0.7063  (Youden J)
+TP / TN / FP / FN,"6662 / 303,127 / 75,275 / 1917"
+Number Needed to Screen,4.5
+Total samples,"386,981"
+Positive samples,"8,579  (2.22%)"
+Ensemble models,5 (5-fold CV)
+Params per model,"173,570,817"
+Bootstrap CI resamples,1000
+Inference batch size,32
+Primary metric method,OFFICIAL PhysioNet
+Folds used,"[0, 1, 2, 3, 4]"
