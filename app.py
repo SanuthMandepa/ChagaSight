@@ -22,6 +22,33 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# --------------------------------------------------
+# Download models from HF Hub if not present locally
+# --------------------------------------------------
+HF_REPO = "sanuthmandepa/chagasight-models"
+_models_dir = ROOT / "models"
+_models_dir.mkdir(exist_ok=True)
+
+_hf_files = {
+    "FINAL_ENSEMBLE_MODEL.pt": "FINAL_ENSEMBLE_MODEL.pt",
+    "model_1d.pt": "model_1d.pt",
+    "model_2d.pt": "model_2d.pt",
+}
+_missing = [fname for fname in _hf_files if not (_models_dir / fname).exists()]
+if _missing:
+    try:
+        from huggingface_hub import hf_hub_download
+        for fname in _missing:
+            print(f"[HF]  Downloading {fname} from {HF_REPO}...")
+            hf_hub_download(
+                repo_id=HF_REPO,
+                filename=_hf_files[fname],
+                local_dir=str(_models_dir),
+            )
+            print(f"[HF]  {fname} ready.")
+    except Exception as _hf_err:
+        print(f"[HF]  Download failed: {_hf_err}")
+
 sys.path.insert(0, str(ROOT))
 
 # --------------------------------------------------
@@ -100,7 +127,9 @@ class ViT1DClassifier(nn.Module):
 # --------------------------------------------------
 def _load(model: nn.Module, path: Path) -> nn.Module:
     ckpt = torch.load(path, map_location=DEVICE, weights_only=False)
-    model.load_state_dict(ckpt["model_state_dict"])
+    # Support both wrapped {"model_state_dict": ...} and raw state dicts
+    state_dict = ckpt["model_state_dict"] if isinstance(ckpt, dict) and "model_state_dict" in ckpt else ckpt
+    model.load_state_dict(state_dict)
     model.eval()
     return model
 
@@ -294,6 +323,8 @@ def predict():
                 prob = torch.sigmoid(model_2d(img_t)).item()
             threshold = 0.5
             folds_used = 1
+            model_metrics = {"auroc": 0.7079, "auprc": 0.0984, "tpr_at_5fpr": 0.2899,
+                             "note": "Fold 0 validation"}
 
         elif model_type == "1d":
             if model_1d is None:
@@ -302,6 +333,8 @@ def predict():
                 prob = torch.sigmoid(model_1d(sig_t, ages, sexes)).item()
             threshold = 0.5
             folds_used = 1
+            model_metrics = {"auroc": 0.8567, "auprc": 0.2295, "tpr_at_5fpr": 0.4482,
+                             "note": "Fold 0 validation"}
 
         else:  # hybrid (default)
             if not hybrid_models:
@@ -314,6 +347,12 @@ def predict():
             prob = float(sum(probs) / len(probs))
             threshold = hybrid_threshold
             folds_used = len(hybrid_models)
+            model_metrics = {
+                "auroc": 0.8707, "auroc_ci": "0.8665–0.8746",
+                "auprc": 0.2589, "auprc_ci": "0.2489–0.2685",
+                "tpr_at_5fpr": 0.4958,
+                "note": "5-fold cross-validation (N=386,981)",
+            }
 
         pred = int(prob >= threshold)
 
@@ -324,6 +363,7 @@ def predict():
             "threshold": threshold,
             "prediction": pred,
             "folds_used": folds_used,
+            "model_metrics": model_metrics,
             "interpretation": (
                 "Positive for Chagas Disease" if pred else "Negative for Chagas Disease"
             ),

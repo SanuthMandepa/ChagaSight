@@ -8,8 +8,8 @@ const MODEL_OPTIONS = [
     id: "hybrid",
     label: "Hybrid Ensemble",
     badge: "Recommended",
-    auroc: 0.896,
-    tpr: 0.504,
+    auroc: 0.8707,
+    tpr: 0.4958,
     description: "Dual-pathway: 2D contour + 1D signal + demographics fusion",
     needsDemographics: true,
     color: "brand",
@@ -29,8 +29,8 @@ const MODEL_OPTIONS = [
     id: "2d",
     label: "2D Visual Model",
     badge: null,
-    auroc: 0.844,
-    tpr: 0.463,
+    auroc: 0.7079,
+    tpr: 0.2899,
     description: "ECG contour image analysis via Vision Transformer",
     needsDemographics: false,
     color: "teal",
@@ -47,8 +47,8 @@ const MODEL_OPTIONS = [
     id: "1d",
     label: "1D Signal Model",
     badge: null,
-    auroc: 0.828,
-    tpr: 0.429,
+    auroc: 0.8567,
+    tpr: 0.4482,
     description: "Raw 12-lead ECG signal + patient demographics",
     needsDemographics: true,
     color: "purple",
@@ -276,7 +276,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Tab buttons */}
             <div className="flex items-center bg-surface-100 rounded-lg p-1" role="tablist" aria-label="Page sections">
               {[
@@ -300,12 +300,12 @@ export default function App() {
             </div>
 
             {/* API status */}
-            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full bg-surface-50 border border-surface-200 flex-shrink-0">
-              <span className={`w-2 h-2 rounded-full ${
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-full bg-surface-50 border border-surface-200 flex-shrink-0">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                 apiOk === true ? "bg-medical-green animate-pulse-soft" :
                 apiOk === false ? "bg-medical-red" : "bg-medical-orange animate-pulse-soft"
               }`} />
-              <span className="text-[10px] text-slate-500 font-semibold">
+              <span className="hidden sm:block text-[10px] text-slate-500 font-semibold whitespace-nowrap">
                 {apiOk === true ? "API Live" : apiOk === false ? "Offline" : "Checking…"}
               </span>
             </div>
@@ -327,20 +327,53 @@ export default function App() {
                     </span>
                   </h2>
                   <p className="text-slate-500 leading-relaxed mb-4">
-                    ChagaSight uses a dual-pathway Vision Transformer combining 2D ECG contour images
-                    and 1D raw signals with patient demographics to detect Chagas cardiomyopathy
-                    patterns that are invisible to the human eye.
+                    ChagaSight is an AI-powered screening tool that detects signs of Chagas cardiomyopathy
+                    directly from a standard 12-lead ECG. It uses a dual-pathway Vision Transformer —
+                    one pathway analyses the ECG as a 2D contour image, the other processes the raw
+                    1D signal alongside patient demographics. The two pathways are fused and a
+                    5-fold ensemble gives the final Chagas risk probability.
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className="px-2 py-1 bg-pastel-blue rounded-md font-semibold text-brand-600">PhysioNet 2025</span>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-pastel-blue rounded-md font-semibold text-brand-600">Final Year Project</span>
                     <span className="px-2 py-1 bg-pastel-mint rounded-md font-semibold text-medical-teal">173M Parameters</span>
                     <span className="px-2 py-1 bg-pastel-lilac rounded-md font-semibold text-purple-600">5-Fold CV</span>
+                    <span className="px-2 py-1 bg-surface-100 rounded-md font-semibold text-slate-500">386,981 ECGs</span>
                   </div>
                 </div>
                 <div className="w-full md:w-72 flex-shrink-0">
                   <img src="/medical_hero.png" alt="Medical AI heart illustration" className="w-full rounded-xl shadow-card" />
                 </div>
               </div>
+            </div>
+
+            {/* Performance metrics */}
+            <div className="card shadow-card p-6">
+              <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-lg bg-pastel-blue flex items-center justify-center text-brand-500">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+                    <path d="M3 17l4-8 4 4 4-6 4 4" />
+                    <path d="M3 21h18" />
+                  </svg>
+                </span>
+                Validated Performance
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: "AUROC", value: "0.8707", ci: "0.8665–0.8746", desc: "Area under ROC curve", color: "brand" },
+                  { label: "AUPRC", value: "0.2589", ci: "0.2489–0.2685", desc: "Area under precision-recall curve", color: "teal" },
+                  { label: "TPR @ 5% FPR", value: "49.6%", ci: null, desc: "Sensitivity at low false-positive rate", color: "purple" },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-xl bg-surface-50 border border-surface-200 p-4">
+                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{m.label}</div>
+                    <div className="text-2xl font-extrabold text-slate-800">{m.value}</div>
+                    {m.ci && <div className="text-[10px] text-slate-400 mt-0.5">[{m.ci}]</div>}
+                    <div className="text-[11px] text-slate-400 mt-1">{m.desc}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-3">
+                Hybrid Ensemble — 5-fold cross-validation on 386,981 ECGs (8,579 positive). Bootstrap CI (1,000 resamples).
+              </p>
             </div>
 
             {/* Features grid */}
@@ -355,7 +388,7 @@ export default function App() {
               ))}
             </div>
 
-            {/* Architecture image */}
+            {/* How it works */}
             <div className="card shadow-card p-6">
               <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
                 <span className="w-8 h-8 rounded-lg bg-pastel-blue flex items-center justify-center text-brand-500">
@@ -369,10 +402,10 @@ export default function App() {
               <div className="flex flex-col md:flex-row items-center gap-6">
                 <div className="flex-1 space-y-3">
                   {[
-                    { step: "1", text: "Upload 12-lead ECG recording (.hea + .dat)" },
-                    { step: "2", text: "AI processes signals through dual ViT pathways" },
-                    { step: "3", text: "5 ensemble models vote on Chagas probability" },
-                    { step: "4", text: "View result with clinical risk interpretation" },
+                    { step: "1", text: "Upload a 12-lead ECG recording (.hea + .dat files)" },
+                    { step: "2", text: "The ECG is converted into a 2D contour image and a 1D signal array" },
+                    { step: "3", text: "Two Vision Transformer pathways process both representations in parallel" },
+                    { step: "4", text: "A 5-model ensemble averages predictions for a robust Chagas risk score" },
                   ].map((s) => (
                     <div key={s.step} className="flex items-center gap-3">
                       <span className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 shadow-brand">
@@ -386,6 +419,13 @@ export default function App() {
                   <img src="/ecg_analysis.png" alt="ECG analysis on screen" className="w-full rounded-xl shadow-card" />
                 </div>
               </div>
+            </div>
+
+            {/* Disclaimer */}
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-[12px] text-amber-700 leading-relaxed">
+              <span className="font-bold">Research Prototype.</span> ChagaSight is an academic Final Year Project
+              and is not approved for clinical use. Results should not be used to make medical decisions.
+              Always consult a qualified healthcare professional.
             </div>
 
             {/* CTA */}
