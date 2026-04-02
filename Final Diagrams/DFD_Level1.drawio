@@ -1,0 +1,184 @@
+<?xml version="1.0" ?>
+<mxfile host="Electron" version="28.2.8">
+  <diagram name="Level 1 DFD" id="Level_1_DFD">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title_node_X" value="&lt;b&gt;&lt;font style=&quot;font-size:15px;&quot;&gt;Figure X — ChagaSight Level 1 Data Flow Diagram (Self-Composed)&lt;/font&gt;&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="200" y="30" width="1200" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="u_end" value="End Users&lt;br&gt;(Clinicians, Students)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="200" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="u_ds" value="ECG Datasets&lt;br&gt;(PTB-XL, SaMi-Trop)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="60" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="u_hub" value="Hugging Face Hub" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="260" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="350" y="180" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1_top" value="1.0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p1">
+          <mxGeometry width="160" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1_bot" value="File Handling&lt;br&gt;&amp; Validation" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p1">
+          <mxGeometry y="25" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="p8" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="350" y="60" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="p8_top" value="8.0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p8">
+          <mxGeometry width="160" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="p8_bot" value="Offline Model&lt;br&gt;Training" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p8">
+          <mxGeometry y="25" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="850" y="250" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3_top" value="3.0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p3">
+          <mxGeometry width="160" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3_bot" value="Signal Preprocessing" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p3">
+          <mxGeometry y="25" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="p4" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="850" y="480" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="p4_top" value="4.0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p4">
+          <mxGeometry width="160" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="p4_bot" value="Model Inference" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p4">
+          <mxGeometry y="25" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="p5" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="350" y="480" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="p5_top" value="5.0" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p5">
+          <mxGeometry width="160" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="p5_bot" value="Result Output" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p5">
+          <mxGeometry y="25" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="600" y="280" width="180" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1_left" value="D" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;" vertex="1" parent="d1">
+          <mxGeometry width="30" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1_right" value="Temp Upload Store" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;spacingLeft=8;" vertex="1" parent="d1">
+          <mxGeometry x="30" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d2" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="600" y="180" width="180" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d2_left" value="D" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;" vertex="1" parent="d2">
+          <mxGeometry width="30" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d2_right" value="Sample ECG Store" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;spacingLeft=8;" vertex="1" parent="d2">
+          <mxGeometry x="30" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d3" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="1100" y="360" width="180" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d3_left" value="D" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;" vertex="1" parent="d3">
+          <mxGeometry width="30" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d3_right" value="Model Registry" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;spacingLeft=8;" vertex="1" parent="d3">
+          <mxGeometry x="30" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d4" value="" style="group" vertex="1" connectable="1" parent="1">
+          <mxGeometry x="600" y="590" width="180" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d4_left" value="D" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;" vertex="1" parent="d4">
+          <mxGeometry width="30" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="d4_right" value="Prediction Log" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;spacingLeft=8;" vertex="1" parent="d4">
+          <mxGeometry x="30" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1_1" value="Upload ECG / Select Sample" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="u_end" target="p1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1_d1" value="Store raw files" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="p1" target="d1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="305"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e1_d2" value="Retrieve sample" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="p1" target="d2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_dps_p" value="Provide records" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="u_ds" target="p8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1300" y="95"/>
+              <mxPoint x="1300" y="50"/>
+              <mxPoint x="550" y="50"/>
+              <mxPoint x="550" y="95"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_hub_d" value="Pretrained weights" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0;exitY=0.5;entryX=1;entryY=0.25;" edge="1" parent="1" source="u_hub" target="d3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1300" y="290"/>
+              <mxPoint x="1300" y="372"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_tr_d" value="Save trained weights" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=1;exitY=0.75;entryX=0.5;entryY=0;" edge="1" parent="1" source="p8" target="d3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1190" y="112"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_d1_p3" value="Fetch raw signal" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="1" source="d1" target="p3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="930" y="305"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_p3_p4" value="Dual tensors
+(img_t, sig_t)" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p3" target="p4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_d3_p4" value="Load model weights" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0.5;exitY=1;entryX=1;entryY=0.5;" edge="1" parent="1" source="d3" target="p4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1190" y="515"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_p4_p5" value="Prediction probability" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="p4" target="p5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_p4_d4" value="Log prediction" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0.25;exitY=1;entryX=1;entryY=0.5;" edge="1" parent="1" source="p4" target="d4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="890" y="615"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_p5_out" value="View result" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0;exitY=0.5;entryX=0.5;entryY=1;" edge="1" parent="1" source="p5" target="u_end">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="140" y="515"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_p5_d1" value="Trigger temp deletion" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=1;exitY=0.25;entryX=0.25;entryY=1;" edge="1" parent="1" source="p5" target="d1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="645" y="497"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,237 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.8 Chrome/140.0.7339.240 Electron/38.4.0 Safari/537.36" version="28.2.8">
+  <diagram name="ChagaSight Class Diagram" id="chagas-class-v1">
+    <mxGraphModel dx="1042" dy="626" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pkg-pp" value="&lt;b&gt;«utility»&lt;/b&gt;&lt;br&gt;PreprocessingPipeline" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="40" y="140" width="260" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg-pp-attr" value="– fs_1d : float = 100.0&lt;br&gt;– fs_2d : float = 500.0&lt;br&gt;– target_len : int = 1000&lt;br&gt;– img_width : int = 2048" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="pkg-pp" vertex="1">
+          <mxGeometry y="26" width="260" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg-pp-div" value="" style="line;strokeColor=#d6b656;fillColor=#fff2cc;" parent="pkg-pp" vertex="1">
+          <mxGeometry y="94" width="260" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg-pp-ops" value="+ remove_baseline(signal, fs) : ndarray&lt;br&gt;+ resample_signal(signal, fs_in, fs_out) : ndarray&lt;br&gt;+ normalize_per_lead(signal) : ndarray&lt;br&gt;+ build_2d_image(signal, width) : ndarray" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="pkg-pp" vertex="1">
+          <mxGeometry y="102" width="260" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="pe1d" value="PatchEmbed1D" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="40" y="420" width="240" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="pe1d-attr" value="– num_leads : int = 12&lt;br&gt;– seq_len : int = 1000&lt;br&gt;– patch_size : int = 50&lt;br&gt;– embed_dim : int = 768&lt;br&gt;– num_patches : int = 240" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="pe1d" vertex="1">
+          <mxGeometry y="26" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="pe1d-div" value="" style="line;strokeColor=#6c8ebf;fillColor=#dae8fc;" parent="pe1d" vertex="1">
+          <mxGeometry y="102" width="240" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="pe1d-ops" value="+ forward(x: Tensor) : Tensor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="pe1d" vertex="1">
+          <mxGeometry y="110" width="240" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="demenc" value="DemographicsEncoder" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="310" y="420" width="240" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="demenc-attr" value="– embed_dim : int = 768&lt;br&gt;– hidden_dim : int = 256&lt;br&gt;– mlp : Sequential" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="demenc" vertex="1">
+          <mxGeometry y="26" width="240" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="demenc-div" value="" style="line;strokeColor=#6c8ebf;fillColor=#dae8fc;" parent="demenc" vertex="1">
+          <mxGeometry y="82" width="240" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="demenc-ops" value="+ forward(age: Tensor, sex: Tensor)&lt;br&gt;     : Tuple[Tensor, Tensor]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="demenc" vertex="1">
+          <mxGeometry y="90" width="240" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="pe2d" value="PatchEmbed2D" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="820" y="420" width="240" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="pe2d-attr" value="– img_size : Tuple = (24, 2048)&lt;br&gt;– patch_size : Tuple = (8, 64)&lt;br&gt;– embed_dim : int = 768&lt;br&gt;– num_patches : int = 96" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="pe2d" vertex="1">
+          <mxGeometry y="26" width="240" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="pe2d-div" value="" style="line;strokeColor=#6c8ebf;fillColor=#dae8fc;" parent="pe2d" vertex="1">
+          <mxGeometry y="94" width="240" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="pe2d-ops" value="+ forward(x: Tensor) : Tensor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="pe2d" vertex="1">
+          <mxGeometry y="102" width="240" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="repa" value="REPAAlignment" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="1090" y="420" width="240" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="repa-attr" value="– embed_dim : int = 768&lt;br&gt;– projection : Sequential" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="repa" vertex="1">
+          <mxGeometry y="26" width="240" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="repa-div" value="" style="line;strokeColor=#6c8ebf;fillColor=#dae8fc;" parent="repa" vertex="1">
+          <mxGeometry y="70" width="240" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="repa-ops" value="+ forward(features_2d: Tensor) : Tensor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="repa" vertex="1">
+          <mxGeometry y="78" width="240" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1d" value="ViT1D_FM" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="40" y="680" width="260" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1d-attr" value="– embed_dim : int = 768&lt;br&gt;– depth : int = 12&lt;br&gt;– use_aol : bool = True&lt;br&gt;– use_demographics : bool = True&lt;br&gt;– patch_embed : PatchEmbed1D&lt;br&gt;– demo_encoder : DemographicsEncoder&lt;br&gt;– layers : ModuleList[12]&lt;br&gt;– norm : LayerNorm" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit1d" vertex="1">
+          <mxGeometry y="26" width="260" height="116" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1d-div" value="" style="line;strokeColor=#6c8ebf;fillColor=#dae8fc;" parent="vit1d" vertex="1">
+          <mxGeometry y="142" width="260" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1d-ops" value="+ forward(x, age, sex) : Tensor&lt;br&gt;+ load_stmem_pretrained(path) : None" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit1d" vertex="1">
+          <mxGeometry y="150" width="260" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2d" value="ViT2D" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="820" y="680" width="260" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2d-attr" value="– embed_dim : int = 768&lt;br&gt;– depth : int = 12&lt;br&gt;– use_aol : bool = True&lt;br&gt;– patch_embed : PatchEmbed2D&lt;br&gt;– layers : ModuleList[12]&lt;br&gt;– norm : LayerNorm&lt;br&gt;– pos_embed : Parameter" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit2d" vertex="1">
+          <mxGeometry y="26" width="260" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2d-div" value="" style="line;strokeColor=#6c8ebf;fillColor=#dae8fc;" parent="vit2d" vertex="1">
+          <mxGeometry y="130" width="260" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2d-ops" value="+ forward(x: Tensor) : Tensor&lt;br&gt;+ load_mae_pretrained(path) : None" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit2d" vertex="1">
+          <mxGeometry y="138" width="260" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="hybrid" value="HybridChagasModel" style="swimlane;fontStyle=1;align=center;startSize=28;fillColor=#dae8fc;strokeColor=#23445D;fontSize=13;strokeWidth=3;" parent="1" vertex="1">
+          <mxGeometry x="410" y="680" width="300" height="235" as="geometry" />
+        </mxCell>
+        <mxCell id="hybrid-attr" value="– embed_dim : int = 768&lt;br&gt;– vit_2d : ViT2D&lt;br&gt;– vit_1d_fm : ViT1D_FM&lt;br&gt;– repa : REPAAlignment&lt;br&gt;– classifier : Sequential&lt;br&gt;  (Linear 1536→512→256→1)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="hybrid" vertex="1">
+          <mxGeometry y="28" width="300" height="96" as="geometry" />
+        </mxCell>
+        <mxCell id="hybrid-div" value="" style="line;strokeColor=#23445D;fillColor=#dae8fc;" parent="hybrid" vertex="1">
+          <mxGeometry y="124" width="300" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="hybrid-ops" value="+ forward(images, signals,&lt;br&gt;   ages, sexes) : Dict[str, Tensor]&lt;br&gt;  ↳ returns logits, fm_features,&lt;br&gt;     aligned_2d_features" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="hybrid" vertex="1">
+          <mxGeometry y="132" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="flaskapp" value="FlaskApp" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="410" y="1000" width="300" height="175" as="geometry" />
+        </mxCell>
+        <mxCell id="flaskapp-attr" value="– model_2d : ViT2DClassifier&lt;br&gt;– model_1d : ViT1DClassifier&lt;br&gt;– hybrid_models : List[HybridChagasModel]&lt;br&gt;– hybrid_threshold : float&lt;br&gt;– UPLOAD_DIR : Path" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="flaskapp" vertex="1">
+          <mxGeometry y="26" width="300" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="flaskapp-div" value="" style="line;strokeColor=#9673a6;fillColor=#e1d5e7;" parent="flaskapp" vertex="1">
+          <mxGeometry y="106" width="300" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="flaskapp-ops" value="+ GET /api/health() : JSON&lt;br&gt;+ POST /api/predict() : JSON" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="flaskapp" vertex="1">
+          <mxGeometry y="114" width="300" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2dcls" value="ViT2DClassifier" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="80" y="1000" width="250" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2dcls-attr" value="– backbone : ViT2D&lt;br&gt;– head : Sequential&lt;br&gt;  (Linear 768→256→1)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit2dcls" vertex="1">
+          <mxGeometry y="26" width="250" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2dcls-div" value="" style="line;strokeColor=#9673a6;fillColor=#e1d5e7;" parent="vit2dcls" vertex="1">
+          <mxGeometry y="80" width="250" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="vit2dcls-ops" value="+ forward(x: Tensor) : Tensor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit2dcls" vertex="1">
+          <mxGeometry y="88" width="250" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1dcls" value="ViT1DClassifier" style="swimlane;fontStyle=1;align=center;startSize=26;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="790" y="1000" width="250" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1dcls-attr" value="– backbone : ViT1D_FM&lt;br&gt;– head : Sequential&lt;br&gt;  (Linear 768→256→1)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit1dcls" vertex="1">
+          <mxGeometry y="26" width="250" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1dcls-div" value="" style="line;strokeColor=#9673a6;fillColor=#e1d5e7;" parent="vit1dcls" vertex="1">
+          <mxGeometry y="80" width="250" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="vit1dcls-ops" value="+ forward(sigs, ages, sexes) : Tensor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;html=1;" parent="vit1dcls" vertex="1">
+          <mxGeometry y="88" width="250" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="comp-v1-pe1d" value="1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="vit1d" target="pe1d" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="comp-v1-dem" value="0..1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="vit1d" target="demenc" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="comp-v2-pe2d" value="1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="vit2d" target="pe2d" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="comp-h-v1" value="1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" parent="1" source="hybrid" target="vit1d" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="comp-h-v2" value="1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" parent="1" source="hybrid" target="vit2d" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="comp-h-repa" value="1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="hybrid" target="repa" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="740" y="793" />
+              <mxPoint x="740" y="498" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="comp-v2cls-v2d" value="1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.2;entryY=1;entryDx=0;entryDy=0;" parent="1" source="vit2dcls" target="vit2d" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="comp-v1cls-v1d" value="1" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=14;html=1;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.8;entryY=1;entryDx=0;entryDy=0;" parent="1" source="vit1dcls" target="vit1d" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dep-fa-hybrid" value="«uses» 1..5" style="dashed=1;endArrow=open;endFill=0;endSize=12;html=1;fontSize=11;fontStyle=2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="flaskapp" target="hybrid" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dep-fa-v2cls" value="«uses»" style="dashed=1;endArrow=open;endFill=0;endSize=12;html=1;fontSize=11;fontStyle=2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="flaskapp" target="vit2dcls" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dep-fa-v1cls" value="«uses»" style="dashed=1;endArrow=open;endFill=0;endSize=12;html=1;fontSize=11;fontStyle=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="flaskapp" target="vit1dcls" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dep-fa-pp" value="«uses»" style="dashed=1;endArrow=open;endFill=0;endSize=12;html=1;fontSize=11;fontStyle=2;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" parent="1" source="flaskapp" target="pkg-pp" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="Legend" style="swimlane;fontStyle=1;align=center;startSize=24;fillColor=#ffffff;strokeColor=#666666;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="1090" y="680" width="260" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-blue" value="" style="fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="legend" vertex="1">
+          <mxGeometry x="12" y="36" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-blue-t" value="src/models (Model layer)" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="40" y="34" width="210" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-yellow" value="" style="fillColor=#fff2cc;strokeColor=#d6b656;" parent="legend" vertex="1">
+          <mxGeometry x="12" y="60" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-yellow-t" value="src/preprocessing (Utility layer)" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="40" y="58" width="210" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-purple" value="" style="fillColor=#e1d5e7;strokeColor=#9673a6;" parent="legend" vertex="1">
+          <mxGeometry x="12" y="84" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-purple-t" value="app.py (API layer)" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="40" y="82" width="210" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-grey" value="" style="fillColor=#f5f5f5;strokeColor=#999999;rounded=1;" parent="legend" vertex="1">
+          <mxGeometry x="12" y="108" width="22" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-grey-t" value="«framework» (external)" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="40" y="106" width="210" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-comp" style="endArrow=none;startArrow=diamondThin;startFill=1;startSize=12;html=1;" parent="legend" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="12" y="170" as="sourcePoint" />
+            <mxPoint x="48" y="170" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg-comp-t" value="Composition (has-a, owns part)" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="52" y="162" width="196" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-dep" style="dashed=1;endArrow=open;endFill=0;endSize=10;html=1;" parent="legend" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="12" y="198" as="sourcePoint" />
+            <mxPoint x="48" y="198" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg-dep-t" value="Dependency «uses»" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="52" y="190" width="196" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-vis" value="Visibility: + public  – private" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="12" y="220" width="236" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-bold" value="Bold border = primary/central class" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="12" y="242" width="236" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-stereo" value="«stereotype» = role annotation" style="text;fontSize=11;align=left;" parent="legend" vertex="1">
+          <mxGeometry x="12" y="264" width="236" height="18" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

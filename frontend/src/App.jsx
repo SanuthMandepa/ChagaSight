@@ -224,6 +224,13 @@ export default function App() {
       setError("Upload a matching .hea + .dat (or .mat) pair.");
       return;
     }
+    if (selectedModel.needsDemographics && age !== "") {
+      const parsedAge = parseInt(age, 10);
+      if (isNaN(parsedAge) || parsedAge < 0 || parsedAge > 120) {
+        setError("Please enter a valid age between 0 and 120 years.");
+        return;
+      }
+    }
     setLoading(true); setError(""); setResult(null);
     try {
       const fd = new FormData();

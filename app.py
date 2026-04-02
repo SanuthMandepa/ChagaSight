@@ -275,6 +275,7 @@ def _preprocess_wfdb(record_base: Path, fs: float):
 def _parse_demographics(req):
     """Returns (age_centuries_tensor, sex_binary_tensor)."""
     age_years = float(req.form.get("age", 50))
+    age_years = max(0.0, min(120.0, age_years))
     sex_str = req.form.get("sex", "unknown").strip().lower()
     ages = torch.tensor([age_years / 100.0], dtype=torch.float32, device=DEVICE)
     sexes = torch.tensor([1.0 if sex_str == "female" else 0.0],

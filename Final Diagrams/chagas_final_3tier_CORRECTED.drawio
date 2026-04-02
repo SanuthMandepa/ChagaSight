@@ -1,0 +1,206 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.8 Chrome/140.0.7339.240 Electron/38.4.0 Safari/537.36" version="28.2.8">
+  <diagram name="System Architecture" id="chagas-final-3tier">
+    <mxGraphModel dx="2295" dy="738" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0" adaptiveColors="none">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="tier1" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;Presentation Tier&lt;/font&gt;" style="swimlane;whiteSpace=wrap;html=1;rounded=1;shadow=0;strokeWidth=2;startSize=60;fillColor=#D5E8D4;strokeColor=#065F46;arcSize=0;rotation=-90;" parent="1" vertex="1">
+          <mxGeometry x="62.25" y="92.5" width="332" height="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="user_input" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;User Input Screen&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;Upload ECG Files&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;(.dat &amp; .hea WFDB)&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#EA6B66;strokeWidth=3;" parent="tier1" vertex="1">
+          <mxGeometry x="-259" y="389" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="processing_screen" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Processing Screen&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Real-time status&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Progress bar&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#EA6B66;strokeWidth=3;" parent="tier1" vertex="1">
+          <mxGeometry x="47" y="545" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="output_screen" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;Output Screen&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;P(Chagas) probability&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Confidence score&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Attention maps&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#EA6B66;strokeWidth=3;" parent="tier1" vertex="1">
+          <mxGeometry x="277" y="389" width="310" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="history_screen" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;Results History&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Previous predictions&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Audit logs&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#EA6B66;strokeWidth=3;" parent="tier1" vertex="1">
+          <mxGeometry x="17" y="395" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_input_processing" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" parent="tier1" source="user_input" target="processing_screen" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_processing_output" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;entryX=0.534;entryY=0.97;entryDx=0;entryDy=0;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tier1" source="processing_screen" target="output_screen" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="283" y="561" as="sourcePoint" />
+            <mxPoint x="428" y="465" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow_processing_history" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.621;entryY=0.959;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tier1" source="processing_screen" target="history_screen" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tier2" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;Logic Tier (AI Pipeline)&lt;/font&gt;" style="swimlane;whiteSpace=wrap;html=1;rounded=1;shadow=0;strokeWidth=2;startSize=60;fillColor=#FFFFCC;strokeColor=#065F46;arcSize=0;rotation=-90;resizable=1;movable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" parent="1" vertex="1">
+          <mxGeometry x="-728.56" y="1216.07" width="1916.25" height="1060.12" as="geometry" />
+        </mxCell>
+        <mxCell id="flask_api" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Flask/FastAPI Gateway&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Request routing&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#EA6B66;strokeWidth=3;" parent="tier2" vertex="1">
+          <mxGeometry x="837.12" y="-365.88" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="validation" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Input Validation&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;WFDB format check&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;12-lead verification&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Signal quality&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#EA6B66;strokeWidth=3;" parent="tier2" vertex="1">
+          <mxGeometry x="1009" y="-221.5" width="280" height="118.75" as="geometry" />
+        </mxCell>
+        <mxCell id="label_processing" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Label Processing&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;PTB-XL: Hard (0/1)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;SaMi-Trop: Hard (0/1)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;CODE-15%: Soft (0.2/0.8)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#EA6B66;strokeWidth=3;dashed=1;" parent="tier2" vertex="1">
+          <mxGeometry x="572.05" y="-215.88" width="307.5" height="107.5" as="geometry" />
+        </mxCell>
+        <mxCell id="common_preproc" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Common Preprocessing&lt;/span&gt;&lt;div&gt;&lt;ul style=&quot;text-align: left;&quot;&gt;&lt;li&gt;&lt;font style=&quot;font-size: 17px;&quot;&gt;Baseline removal&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font style=&quot;font-size: 17px;&quot;&gt;Pad/truncate 10s&lt;/font&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#EA6B66;strokeWidth=3;" parent="tier2" vertex="1">
+          <mxGeometry x="585.8" y="-45.879999999999995" width="280" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="2d_path_container" value="2D SPATIAL PATH (Kim et al.)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0277BD;strokeWidth=2;align=center;verticalAlign=top;fontSize=18;fontStyle=1;" parent="tier2" vertex="1">
+          <mxGeometry x="585.8" y="96.62" width="330" height="707.5" as="geometry" />
+        </mxCell>
+        <mxCell id="2d_resample" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Resample to 500 Hz&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B3E5FC;strokeColor=#0277BD;strokeWidth=2;" parent="tier2" vertex="1">
+          <mxGeometry x="618.25" y="144.12" width="260" height="42.5" as="geometry" />
+        </mxCell>
+        <mxCell id="2d_crop" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Random 3s crop&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(Training only)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B3E5FC;strokeColor=#0277BD;strokeWidth=2;dashed=1;" parent="tier2" vertex="1">
+          <mxGeometry x="618.25" y="216.62" width="260" height="57.5" as="geometry" />
+        </mxCell>
+        <mxCell id="lead_mixup" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Lead-mixup augment&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(Training only)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B3E5FC;strokeColor=#0277BD;strokeWidth=2;dashed=1;" parent="tier2" vertex="1">
+          <mxGeometry x="618.25" y="304.12" width="260" height="58.5" as="geometry" />
+        </mxCell>
+        <mxCell id="2d_image_builder" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;2D Image Builder&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Contour-based (RA/LA/LL)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Clip [-3,3] → [0,255]&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Resize to (3, 24, 2048)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B3E5FC;strokeColor=#0277BD;strokeWidth=2;" parent="tier2" vertex="1">
+          <mxGeometry x="622.05" y="395.12" width="260" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="image_augment" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Image Augmentations&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 15px;&quot;&gt;Grid shuffle, dropout&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 15px;&quot;&gt;Rotate, noise, blur&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(Training only)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B3E5FC;strokeColor=#0277BD;strokeWidth=2;dashed=1;" parent="tier2" vertex="1">
+          <mxGeometry x="618.3" y="534.12" width="267.5" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="2d_vit" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;2D-ViT Encoder&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Rectangular patches 24×128&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;16 patches, 8-12 layers&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Extract all layers&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;AoL: Average pooling&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Output: 768-dim&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B3E5FC;strokeColor=#0277BD;strokeWidth=2;" parent="tier2" vertex="1">
+          <mxGeometry x="614.55" y="654.12" width="275" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="1d_path_container" value="1D FM PATH (Van Santvliet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;strokeWidth=2;align=center;verticalAlign=top;fontSize=18;fontStyle=1;" parent="tier2" vertex="1">
+          <mxGeometry x="968.37" y="91.62" width="330" height="610" as="geometry" />
+        </mxCell>
+        <mxCell id="1d_resample" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Resample to 100 Hz&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=2;" parent="tier2" vertex="1">
+          <mxGeometry x="999.6199999999999" y="139.12" width="247.5" height="47.5" as="geometry" />
+        </mxCell>
+        <mxCell id="1d_normalize" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Z-score normalize&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Per lead&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=2;" parent="tier2" vertex="1">
+          <mxGeometry x="999.6199999999999" y="211.62" width="248.75" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="powerline_aug" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Powerline Augment&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 15px;&quot;&gt;50/60 Hz, SNR 15-30dB&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(Training only)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=2;dashed=1;" parent="tier2" vertex="1">
+          <mxGeometry x="1004.6199999999999" y="297.12" width="243.75" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="crop_shift" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Crop &amp; Shift&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(Training only)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=2;dashed=1;" parent="tier2" vertex="1">
+          <mxGeometry x="1004.6199999999999" y="382.12" width="257.5" height="52.5" as="geometry" />
+        </mxCell>
+        <mxCell id="fm_encoder" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;Foundation Model&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;1D-ViT (ST-MEM pretrained)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;12 transformer blocks&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Patch size: 50 samples&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Input: (12, 1000)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Extract all 12 layers&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;AoL: Average pooling&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Output: 768-dim&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=2;" parent="tier2" vertex="1">
+          <mxGeometry x="999.6199999999999" y="479.12" width="267.5" height="197.5" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_api_validation" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" parent="tier2" source="flask_api" target="validation" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_validation_label" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="tier2" source="validation" target="label_processing" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_label_common" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="label_processing" target="common_preproc" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_common_2d" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" parent="tier2" source="common_preproc" target="2d_resample" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_common_1d" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;edgeStyle=orthogonalEdgeStyle;" parent="tier2" source="common_preproc" target="1d_resample" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="852.05" y="772.5" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow_2d_flow1" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="2d_resample" target="2d_crop" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_2d_flow2" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="2d_crop" target="lead_mixup" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_2d_flow3" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="lead_mixup" target="2d_image_builder" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_2d_flow4" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="2d_image_builder" target="image_augment" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_2d_flow5" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="image_augment" target="2d_vit" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_1d_flow1" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="1d_resample" target="1d_normalize" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_1d_flow2" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.49;entryY=-0.006;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tier2" source="1d_normalize" target="powerline_aug" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_1d_flow3" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.478;entryY=-0.011;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tier2" source="powerline_aug" target="crop_shift" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_1d_flow4" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="crop_shift" target="fm_encoder" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="alignment" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Alignment Module&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Projection head:&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;• Depthwise conv&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;• SiLU activation&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;• MLP projection&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Cosine similarity loss&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(Training only, λ=0.5)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;strokeWidth=3;" parent="tier2" vertex="1">
+          <mxGeometry x="588.05" y="854.12" width="328" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_2d_to_alignment" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="2d_vit" target="alignment" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="demographics" value="&lt;span style=&quot;font-size: 19px;&quot;&gt;Demographics Encoder&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(Applied to FM only)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Input: Age, Sex&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;MLP: 2 → Y [scale, shift]&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;X&#39; = X × (1+scale) + shift&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Output: 768-dim (modified)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;strokeWidth=3;" parent="tier2" vertex="1">
+          <mxGeometry x="1009" y="824.1199999999999" width="240" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_fm_demo" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="tier2" source="fm_encoder" target="demographics" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_demo_alignment" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" parent="tier2" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1008.56" y="923.9300000000001" as="sourcePoint" />
+            <mxPoint x="918.56" y="923.9300000000001" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ensemble" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Ensemble Inference&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;5 models (5-fold CV)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Average probabilities&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Final P(Chagas)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#EA6B66;strokeWidth=3;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;allowArrows=1;movableLabel=0;" parent="tier2" vertex="1">
+          <mxGeometry x="1018.3699999999999" y="1054.12" width="290" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="tier3" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;Data Tier&lt;/font&gt;" style="swimlane;whiteSpace=wrap;html=1;rounded=1;shadow=0;strokeWidth=2;startSize=60;fillColor=#99CCFF;strokeColor=#065F46;arcSize=0;rotation=-90;resizable=1;movable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" parent="1" vertex="1">
+          <mxGeometry x="11.96" y="2391.16" width="440.13" height="1062.56" as="geometry" />
+        </mxCell>
+        <mxCell id="raw_storage" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;Raw Dataset Storage&lt;/font&gt;&lt;div&gt;&lt;ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;WFDB files&lt;/font&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;PTB-XL (21,799)&lt;/font&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;SaMi-Trop (1,631)&lt;/font&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;CODE-15% (300K+)&lt;/font&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#99CCFF;strokeWidth=2;" parent="tier3" vertex="1">
+          <mxGeometry x="8.319999999999993" y="398.56" width="225.68" height="257.44" as="geometry" />
+        </mxCell>
+        <mxCell id="model_storage" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Model Registry&lt;/span&gt;&lt;br&gt;&lt;div&gt;&lt;ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;2D-ViT weights&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;FM weights&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;5-fold models&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Checkpoints&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#99CCFF;strokeWidth=2;" parent="tier3" vertex="1">
+          <mxGeometry x="-221.68" y="414.5" width="205.5" height="233" as="geometry" />
+        </mxCell>
+        <mxCell id="results_db" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Results Database&lt;/span&gt;&lt;br&gt;&lt;div&gt;&lt;ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Predictions&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Timestamps&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Challenge scores&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Audit logs&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#99CCFF;strokeWidth=2;" parent="tier3" vertex="1">
+          <mxGeometry x="538.04" y="382.28" width="180" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_raw_processed" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tier3" source="raw_storage" target="processed_storage" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="processed_storage" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Processed Cache&lt;/span&gt;&lt;div&gt;&lt;ul&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;2D images (.npy)&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;1D signals (.npy)&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;Metadata (.csv)&lt;/span&gt;&lt;/li&gt;&lt;li style=&quot;text-align: left;&quot;&gt;&lt;span style=&quot;font-size: 18px;&quot;&gt;HDF5 format&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#99CCFF;strokeWidth=2;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" parent="tier3" vertex="1">
+          <mxGeometry x="288.32" y="382.28" width="180" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="cross_presentation_logic" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="processing_screen" target="flask_api" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cross_logic_presentation" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" parent="1" source="ensemble" target="processing_screen" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cross_data_logic_models" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" parent="1" source="model_storage" target="flask_api" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-210" y="2710" />
+              <mxPoint x="-210" y="940" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cross_logic_data_results" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="1" source="ensemble" target="results_db" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_classifier_ensemble" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" parent="1" source="classifier" target="ensemble" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="classifier" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Classification Head&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Input: 1536-dim&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;MLP: 1536→512→256→1&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Sigmoid activation&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;Asymmetric BCE loss&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;(γ⁺=0, γ⁻=2, weight=10)&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#EA6B66;strokeWidth=3;" parent="1" vertex="1">
+          <mxGeometry x="-180" y="2470" width="400" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_fusion_classifier" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.508;entryY=0.005;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="fusion" target="classifier" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fusion" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Feature Fusion&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Concatenate:&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;2D-ViT (768) +&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;FM_modified (768)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 17px;&quot;&gt;Total: 1536-dim&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#EA6B66;strokeWidth=3;" parent="1" vertex="1">
+          <mxGeometry x="-136.32000000000005" y="2290" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_alignment_fusion" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" parent="1" source="alignment" target="fusion" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
