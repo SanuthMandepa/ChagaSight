@@ -765,6 +765,20 @@ export default function App() {
 
                     <h1 className="hidden print:block text-2xl font-extrabold text-slate-800 border-b border-surface-200 pb-3 mb-4 mt-2">Chagas Disease Screening Report</h1>
 
+                    {/* Print-only Patient Demographics */}
+                    {selectedModel.needsDemographics && (
+                      <div className="hidden print:flex items-center gap-8 mb-4 lg:mb-6 pb-4 border-b border-surface-100">
+                        <div>
+                          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Patient Age</div>
+                          <div className="text-sm text-slate-800 font-semibold">{age ? `${age} years` : "Not specified"}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Biological Sex</div>
+                          <div className="text-sm text-slate-800 font-semibold capitalize">{sex}</div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Header */}
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-extrabold text-slate-800">Prediction Result</h2>
