@@ -308,10 +308,9 @@ export default function App() {
 
             {/* API status */}
             <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-full bg-surface-50 border border-surface-200 flex-shrink-0">
-              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                apiOk === true ? "bg-medical-green animate-pulse-soft" :
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${apiOk === true ? "bg-medical-green animate-pulse-soft" :
                 apiOk === false ? "bg-medical-red" : "bg-medical-orange animate-pulse-soft"
-              }`} />
+                }`} />
               <span className="hidden sm:block text-[10px] text-slate-700 font-semibold whitespace-nowrap">
                 {apiOk === true ? "API Live" : apiOk === false ? "Offline" : "Checking…"}
               </span>
@@ -344,7 +343,7 @@ export default function App() {
                     <span className="px-2 py-1 bg-pastel-blue rounded-md font-semibold text-brand-600">Final Year Project</span>
                     <span className="px-2 py-1 bg-pastel-mint rounded-md font-semibold text-medical-teal">173M Parameters</span>
                     <span className="px-2 py-1 bg-pastel-lilac rounded-md font-semibold text-purple-600">5-Fold CV</span>
-                    <span className="px-2 py-1 bg-surface-100 rounded-md font-semibold text-slate-700">386,981 ECGs</span>
+                    <span className="px-2 py-1 bg-surface-100 rounded-md font-semibold text-slate-700">366 181 ECGs</span>
                   </div>
                 </div>
                 <div className="w-full md:w-72 flex-shrink-0">
@@ -379,7 +378,7 @@ export default function App() {
                 ))}
               </div>
               <p className="text-[11px] text-slate-700 mt-3">
-                Hybrid Ensemble — 5-fold cross-validation on 386,981 ECGs (8,579 positive). Bootstrap CI (1,000 resamples).
+                Hybrid Ensemble — 5-fold cross-validation on 366,181 ECGs (8,190 positive). Bootstrap CI (1,000 resamples).
               </p>
             </div>
 
@@ -387,7 +386,7 @@ export default function App() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {FEATURES.map((f, i) => (
                 <div key={i} className="card shadow-card p-5 text-center hover:shadow-card-hover transition-shadow duration-300 group cursor-default"
-                     style={{ animationDelay: `${i * 0.1}s` }}>
+                  style={{ animationDelay: `${i * 0.1}s` }}>
                   <div className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">{f.icon}</div>
                   <h4 className="font-bold text-sm text-slate-700">{f.title}</h4>
                   <p className="text-[11px] text-slate-700 mt-1">{f.desc}</p>
@@ -613,7 +612,7 @@ export default function App() {
                           className={`rounded-xl border-2 p-3 text-left transition-all duration-200 hover:shadow-sm min-h-[56px]
                             ${s.color === "brand" ? "border-brand-200 bg-pastel-blue/40 hover:border-brand-400" :
                               s.color === "teal" ? "border-teal-200 bg-pastel-mint/40 hover:border-teal-400" :
-                              "border-purple-200 bg-pastel-lilac/40 hover:border-purple-400"}
+                                "border-purple-200 bg-pastel-lilac/40 hover:border-purple-400"}
                             ${sampleLoading === s.dataset ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
                         >
                           <div className={`text-xs font-extrabold mb-0.5
