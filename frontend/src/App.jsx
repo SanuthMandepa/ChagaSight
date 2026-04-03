@@ -110,7 +110,7 @@ function ProbGauge({ probability, isPositive }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-4xl font-extrabold tracking-tight text-slate-800">{pct}</span>
-          <span className="text-xs text-slate-400 font-semibold">%</span>
+          <span className="text-xs text-slate-500 font-semibold">%</span>
         </div>
       </div>
     </div>
@@ -279,7 +279,7 @@ export default function App() {
                   ChagaSight
                 </span>
               </h1>
-              <p className="text-[10px] text-slate-400 font-medium -mt-0.5">AI-Powered ECG Analysis</p>
+              <p className="text-[10px] text-slate-500 font-medium -mt-0.5">AI-Powered ECG Analysis</p>
             </div>
           </div>
 
@@ -298,7 +298,7 @@ export default function App() {
                   className={`px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-md transition-all duration-200
                     ${activeTab === tab.key
                       ? "bg-white text-brand-600 shadow-sm"
-                      : "text-slate-400 hover:text-slate-600"
+                      : "text-slate-500 hover:text-slate-600"
                     }`}
                 >
                   {tab.label}
@@ -371,14 +371,14 @@ export default function App() {
                   { label: "TPR @ 5% FPR", value: "49.6%", ci: null, desc: "Sensitivity at low false-positive rate", color: "purple" },
                 ].map((m) => (
                   <div key={m.label} className="rounded-xl bg-surface-50 border border-surface-200 p-4">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{m.label}</div>
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{m.label}</div>
                     <div className="text-2xl font-extrabold text-slate-800">{m.value}</div>
-                    {m.ci && <div className="text-[10px] text-slate-400 mt-0.5">[{m.ci}]</div>}
-                    <div className="text-[11px] text-slate-400 mt-1">{m.desc}</div>
+                    {m.ci && <div className="text-[10px] text-slate-500 mt-0.5">[{m.ci}]</div>}
+                    <div className="text-[11px] text-slate-500 mt-1">{m.desc}</div>
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-400 mt-3">
+              <p className="text-[11px] text-slate-500 mt-3">
                 Hybrid Ensemble — 5-fold cross-validation on 386,981 ECGs (8,579 positive). Bootstrap CI (1,000 resamples).
               </p>
             </div>
@@ -390,7 +390,7 @@ export default function App() {
                      style={{ animationDelay: `${i * 0.1}s` }}>
                   <div className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">{f.icon}</div>
                   <h4 className="font-bold text-sm text-slate-700">{f.title}</h4>
-                  <p className="text-[11px] text-slate-400 mt-1">{f.desc}</p>
+                  <p className="text-[11px] text-slate-500 mt-1">{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -458,7 +458,7 @@ export default function App() {
                   <h2 className="text-2xl font-extrabold text-slate-800 mb-1">
                     ECG Analysis
                   </h2>
-                  <p className="text-sm text-slate-400">Upload a 12-lead ECG to screen for Chagas disease</p>
+                  <p className="text-sm text-slate-500">Upload a 12-lead ECG to screen for Chagas disease</p>
                 </div>
                 <EcgLine className="w-48 hidden md:block opacity-60" />
               </div>
@@ -502,19 +502,19 @@ export default function App() {
                           <div className="flex sm:flex-col lg:flex-row items-start sm:items-center lg:items-start gap-3 sm:gap-2 lg:gap-3">
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors
                               ${active ? opt.iconBg : "bg-surface-100 group-hover:bg-surface-200"}`} aria-hidden="true">
-                              <div className={active ? opt.iconColor : "text-slate-400 group-hover:text-slate-500"}>
+                              <div className={active ? opt.iconColor : "text-slate-500 group-hover:text-slate-500"}>
                                 {opt.icon}
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-sm text-slate-700">{opt.label}</div>
-                              <div className="text-[11px] text-slate-400 mt-0.5 leading-tight block sm:hidden lg:block">{opt.description}</div>
+                              <div className="text-[11px] text-slate-500 mt-0.5 leading-tight block sm:hidden lg:block">{opt.description}</div>
 
                               {/* Metric bars — hidden on tablet to save horizontal space */}
                               <div className="mt-3 space-y-2 block sm:hidden lg:block">
                                 <div>
                                   <div className="flex items-center justify-between text-[10px] mb-0.5">
-                                    <span className="text-slate-400 font-medium">AUROC</span>
+                                    <span className="text-slate-500 font-medium">AUROC</span>
                                     <span className="font-bold text-slate-600">{opt.auroc.toFixed(3)}</span>
                                   </div>
                                   <div className="h-1.5 rounded-full bg-surface-200 overflow-hidden">
@@ -526,7 +526,7 @@ export default function App() {
                                 </div>
                                 <div>
                                   <div className="flex items-center justify-between text-[10px] mb-0.5">
-                                    <span className="text-slate-400 font-medium">TPR@5%</span>
+                                    <span className="text-slate-500 font-medium">TPR@5%</span>
                                     <span className="font-bold text-slate-600">{opt.tpr.toFixed(3)}</span>
                                   </div>
                                   <div className="h-1.5 rounded-full bg-surface-200 overflow-hidden">
@@ -601,7 +601,7 @@ export default function App() {
 
                   {/* Sample ECG picker */}
                   <div className="mb-4">
-                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2" id="sample-label">Try a Sample ECG</p>
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2" id="sample-label">Try a Sample ECG</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="group" aria-labelledby="sample-label">
                       {SAMPLE_ECGS.map((s) => (
                         <button
@@ -620,7 +620,7 @@ export default function App() {
                             ${s.color === "brand" ? "text-brand-600" : s.color === "teal" ? "text-medical-teal" : "text-purple-600"}`}>
                             {sampleLoading === s.dataset ? "Loading…" : s.label}
                           </div>
-                          <div className="text-[11px] text-slate-400 leading-tight">{s.desc}</div>
+                          <div className="text-[11px] text-slate-500 leading-tight">{s.desc}</div>
                         </button>
                       ))}
                     </div>
@@ -652,7 +652,7 @@ export default function App() {
                     <p className="text-sm text-slate-600 font-semibold">
                       Drag & drop WFDB files here
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                       or <span className="text-brand-500 font-semibold cursor-pointer hover:underline">browse files</span>
                     </p>
                     <p className="text-[11px] text-slate-300 mt-2">.hea + .dat or .mat pair required</p>
@@ -672,7 +672,7 @@ export default function App() {
                             </div>
                             <div>
                               <span className="text-sm text-slate-700 font-medium">{f.name}</span>
-                              <span className="text-xs text-slate-400 ml-2">({(f.size / 1024).toFixed(0)} KB)</span>
+                              <span className="text-xs text-slate-500 ml-2">({(f.size / 1024).toFixed(0)} KB)</span>
                             </div>
                           </div>
                           <button
@@ -810,11 +810,24 @@ export default function App() {
                         { label: "Threshold", value: result.threshold },
                       ].map((item, i) => (
                         <div key={i} className="bg-white rounded-lg border border-surface-200 p-3 text-center">
-                          <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{item.label}</div>
+                          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">{item.label}</div>
                           <div className="text-xs text-slate-700 font-semibold mt-1">{item.value}</div>
                         </div>
                       ))}
                     </div>
+
+                    {/* Download Report Button */}
+                    <button
+                      onClick={() => window.print()}
+                      className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white py-3 font-bold text-slate-600 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-600 transition-all duration-300 shadow-sm print:hidden group"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform">
+                        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M12 15V3" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M8 11l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Download PDF Report
+                    </button>
                   </div>
                 )}
               </div>
@@ -823,7 +836,7 @@ export default function App() {
         )}
 
         {/* ══════════ FOOTER ══════════ */}
-        <footer className="text-center text-[11px] text-slate-400 pt-8 pb-6 space-y-1">
+        <footer className="text-center text-[11px] text-slate-500 pt-8 pb-6 space-y-1">
           <p className="font-semibold">ChagaSight v1.0 · Research Prototype</p>
           <p>Not validated for clinical use. Consult a medical professional for diagnosis.</p>
         </footer>
