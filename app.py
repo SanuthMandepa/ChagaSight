@@ -469,11 +469,17 @@ def preview():
         sig_500_norm = normalize_per_lead(sig_500.copy())
 
         # Stage 5: 2D contour image
+        # The model uses the 3 channels (RA, LA, LL references), we return them separately for UI
         img = build_2d_image(sig_500_norm, target_width=2048)   # (3, 24, 2048) uint8
-        # Show channel 0 (RA-referenced) as greyscale-ish RGB for display
-        img_display = img[0]  # (24, 2048) uint8
-        img_rgb = np.stack([img_display, img[1], img[2]], axis=-1)  # (24, 2048, 3)
-        contour_b64 = "data:image/png;base64," + _numpy_to_png_b64(img_rgb)
+        
+        def to_png_b64(arr_2d):
+            # Convert single channel to RGB for saving/displaying reliably
+            img_rgb = np.stack([arr_2d, arr_2d, arr_2d], axis=-1)
+            return "data:image/png;base64," + _numpy_to_png_b64(img_rgb)
+
+        contour_ra = to_png_b64(img[0])
+        contour_la = to_png_b64(img[1])
+        contour_ll = to_png_b64(img[2])
 
         stages = {
             "raw": {
@@ -511,7 +517,11 @@ def preview():
             "leads": ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"],
             "original_fs": fs,
             "stages": stages,
-            "contour_image": contour_b64,
+            "contours": {
+                "RA": contour_ra,
+                "LA": contour_la,
+                "LL": contour_ll,
+            }
         })
 
     except Exception as e:

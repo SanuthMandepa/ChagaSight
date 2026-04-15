@@ -1011,11 +1011,19 @@ export default function App() {
                     2D Contour Image <span className="text-slate-600 font-normal">(2D ViT input)</span>
                   </h3>
                   <p className="text-fluid-xs text-slate-700 mb-3">
-                    RGB image constructed via Wilson Central Terminal re-referencing. Shape: 3 × 24 × 2 048 (R=RA · G=LA · B=LL channels).
+                    Created via Wilson Central Terminal (WCT) re-referencing to simulate 3 electrode perspectives. 
+                    Each channel represents the signal from the perspective of a different reference limb.
                   </p>
-                  <div className="overflow-x-auto rounded-xl border border-surface-200">
-                    <img src={previewData.contour_image} alt="2D ECG contour"
-                      className="w-full" style={{ imageRendering: "pixelated", minWidth: "600px" }} />
+                  <div className="space-y-4">
+                    {["RA", "LA", "LL"].map((ref) => (
+                      <div key={ref}>
+                        <h4 className="text-fluid-xs font-bold text-slate-700 mb-1">{ref}-Referenced Channel</h4>
+                        <div className="overflow-x-auto rounded-xl border border-surface-200 bg-black">
+                          <img src={previewData.contours[ref]} alt={`2D ECG contour ${ref}`}
+                            className="w-full h-24 object-fill" style={{ imageRendering: "pixelated", minWidth: "600px" }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </>
@@ -1102,7 +1110,7 @@ export default function App() {
                       <div className="flex-1">
                         <div className="text-fluid-sm font-bold text-slate-800">2D Contour Image — ViT Input</div>
                         <div className="text-fluid-xs text-slate-600 mt-0.5">
-                          WCT re-referencing creates three electrode perspectives (RA · LA · LL) as RGB channels. Shape: 3 × 24 × 2 048 uint8.
+                          WCT re-referencing creates three electrode perspectives (RA · LA · LL). Stacked to shape: 3 × 24 × 2 048 uint8.
                         </div>
                       </div>
                       <div className="hidden sm:flex flex-col gap-1 items-end flex-shrink-0">
@@ -1110,12 +1118,16 @@ export default function App() {
                         <span className="px-2 py-1 rounded-lg bg-surface-100 text-fluid-xs font-bold text-slate-700">uint8</span>
                       </div>
                     </div>
-                    <div className="p-4">
-                      <div className="overflow-x-auto rounded-xl border border-surface-200">
-                        <img src={previewData.contour_image} alt="2D ECG contour" className="w-full"
-                          style={{ imageRendering: "pixelated", minWidth: "500px" }} />
-                      </div>
-                      <p className="text-fluid-xs text-slate-600 mt-2">Red channel=RA · Green=LA · Blue=LL electrode reference</p>
+                    <div className="p-4 space-y-4">
+                      {["RA", "LA", "LL"].map(ref => (
+                         <div key={ref}>
+                           <div className="text-fluid-xs font-bold text-slate-600 mb-1">{ref} Channel</div>
+                           <div className="overflow-x-auto rounded-xl border border-surface-200 bg-black">
+                             <img src={previewData.contours[ref]} alt={`2D ECG contour ${ref}`} className="w-full h-24 object-fill"
+                               style={{ imageRendering: "pixelated", minWidth: "500px" }} />
+                           </div>
+                         </div>
+                      ))}
                     </div>
                   </div>
                 </div>
