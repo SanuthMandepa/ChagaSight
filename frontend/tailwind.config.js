@@ -9,6 +9,22 @@ export default {
       fontFamily: {
         sans: ["'Manrope'", "system-ui", "sans-serif"],
       },
+      fontSize: {
+        // Fluid type scale — clamp(min, preferred-vw, max)
+        "fluid-2xs": "clamp(8px,  0.7vw,  10px)",
+        "fluid-xs":  "clamp(9px,  0.85vw, 11px)",
+        "fluid-sm":  "clamp(11px, 1.0vw,  13px)",
+        "fluid-base":"clamp(12px, 1.15vw, 15px)",
+        "fluid-lg":  "clamp(14px, 1.3vw,  18px)",
+        "fluid-xl":  "clamp(16px, 1.6vw,  22px)",
+        "fluid-2xl": "clamp(20px, 2.0vw,  28px)",
+        "fluid-3xl": "clamp(24px, 2.6vw,  36px)",
+        "fluid-4xl": "clamp(30px, 3.2vw,  48px)",
+      },
+      maxWidth: {
+        // ~80 vw but capped at 1400 px
+        "8xl": "min(80vw, 1400px)",
+      },
       colors: {
         brand: {
           50:  "#f0f7ff",
@@ -48,26 +64,26 @@ export default {
         },
       },
       boxShadow: {
-        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)',
-        'card-hover': '0 4px 16px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.04)',
-        'elevated': '0 8px 30px rgba(0,0,0,0.06)',
-        'brand': '0 4px 20px rgba(12,140,233,0.2)',
-        'brand-lg': '0 8px 32px rgba(12,140,233,0.25)',
-        'glow-green': '0 4px 20px rgba(16,185,129,0.2)',
-        'glow-red': '0 4px 20px rgba(239,68,68,0.15)',
+        card:        "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+        "card-hover":"0 4px 16px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.04)",
+        elevated:    "0 8px 30px rgba(0,0,0,0.06)",
+        brand:       "0 4px 20px rgba(12,140,233,0.2)",
+        "brand-lg":  "0 8px 32px rgba(12,140,233,0.25)",
+        "glow-green":"0 4px 20px rgba(16,185,129,0.2)",
+        "glow-red":  "0 4px 20px rgba(239,68,68,0.15)",
       },
       animation: {
-        "fade-in-up":  "fadeInUp 0.5s ease-out forwards",
-        "fade-in":     "fadeIn 0.4s ease-out forwards",
-        "slide-up":    "slideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards",
-        "pulse-soft":  "pulseSoft 3s ease-in-out infinite",
-        "shimmer":     "shimmer 2.5s linear infinite",
-        "gauge":       "gauge 1.2s ease-out forwards",
-        "heartbeat":   "heartbeat 1.5s ease-in-out infinite",
-        "float":       "float 6s ease-in-out infinite",
-        "float-slow":  "float 9s ease-in-out infinite",
-        "ecg-trace":   "ecgTrace 2.5s ease-in-out forwards",
-        "scale-in":    "scaleIn 0.3s ease-out forwards",
+        "fade-in-up": "fadeInUp 0.5s ease-out forwards",
+        "fade-in":    "fadeIn 0.4s ease-out forwards",
+        "slide-up":   "slideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards",
+        "pulse-soft": "pulseSoft 3s ease-in-out infinite",
+        shimmer:      "shimmer 2.5s linear infinite",
+        gauge:        "gauge 1.2s ease-out forwards",
+        heartbeat:    "heartbeat 1.5s ease-in-out infinite",
+        float:        "float 6s ease-in-out infinite",
+        "float-slow": "float 9s ease-in-out infinite",
+        "ecg-trace":  "ecgTrace 2.5s ease-in-out forwards",
+        "scale-in":   "scaleIn 0.3s ease-out forwards",
       },
       keyframes: {
         fadeInUp: {

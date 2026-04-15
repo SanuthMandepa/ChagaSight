@@ -95,7 +95,7 @@
         <mxCell id="p36_top" value="3.6" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p36">
           <mxGeometry width="150" height="25" as="geometry"/>
         </mxCell>
-        <mxCell id="p36_bot" value="Normalise (1D)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p36">
+        <mxCell id="p36_bot" value="Pad/Trim (1D)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p36">
           <mxGeometry y="25" width="150" height="40" as="geometry"/>
         </mxCell>
         <mxCell id="p37" value="" style="group" vertex="1" connectable="1" parent="1">
@@ -104,7 +104,7 @@
         <mxCell id="p37_top" value="3.7" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p37">
           <mxGeometry width="150" height="25" as="geometry"/>
         </mxCell>
-        <mxCell id="p37_bot" value="Pad/Trim 1D Tensors" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p37">
+        <mxCell id="p37_bot" value="Normalise &amp; Clip (1D)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" vertex="1" parent="p37">
           <mxGeometry y="25" width="150" height="40" as="geometry"/>
         </mxCell>
         <mxCell id="p41" value="" style="group" vertex="1" connectable="1" parent="1">
@@ -219,7 +219,7 @@
         <mxCell id="e6" value="100 Hz signal" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p35" target="p36">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e7" value="Z-normalised signal" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p36" target="p37">
+        <mxCell id="e7" value="Padded signal (12, 1000)" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p36" target="p37">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="e8" value="img_t (3, 24, 2048)" style="endArrow=block;endFill=1;html=1;strokeWidth=1;strokeColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;fontColor=#000000;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" edge="1" parent="1" source="p34" target="d5">

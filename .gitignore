@@ -33,3 +33,10 @@ wandb/
 data/official_wfdb/*
 
 Draw.io files/*
+
+files/*
+
+Final Diagrams/*
+thesis_figures_old/*
+thesis_figures/*
+tests/*

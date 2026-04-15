@@ -42,11 +42,28 @@ body::before {
     border: 1px solid #e2e8f0;
     border-radius: 16px;
   }
+  /* ECG chart grid background */
+  .chart-grid {
+    background-image:
+      linear-gradient(rgba(255,100,100,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,100,100,0.06) 1px, transparent 1px),
+      linear-gradient(rgba(255,100,100,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,100,100,0.03) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+    background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
+  }
+  /* Sub-tab pill */
+  .sub-tab-active {
+    background: white;
+    color: #0c8ce9;
+    box-shadow: 0 1px 4px rgba(12,140,233,0.15);
+  }
 }
 
 /* ── Scrollbar styling ──────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -95,4 +112,19 @@ select {
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
+}
+
+/* ── Waveform lead label ─────────────────────────── */
+.lead-label {
+  font-size: clamp(9px, 0.75vw, 11px);
+  font-weight: 700;
+  font-family: "Manrope", monospace;
+  letter-spacing: 0.05em;
+}
+
+/* ── Preprocessing stage timeline connector ─────── */
+.stage-connector {
+  width: 2px;
+  background: linear-gradient(to bottom, #0c8ce9, #e2e8f0);
+  margin: 0 auto;
 }

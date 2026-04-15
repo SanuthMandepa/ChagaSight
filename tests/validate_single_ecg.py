@@ -312,33 +312,33 @@ def validate_single_ecg(ds: str, record_id: str):
     try:
         saved_1d = load_saved_1d(ds, record_id)
         print(f"  Saved 1D: {saved_1d.shape}  "
-              f"match={'✓' if np.allclose(saved_1d, steps['sig_100'], atol=1e-4) else '✗'}")
+              f"match={'OK' if np.allclose(saved_1d, steps['sig_100'], atol=1e-4) else 'MISMATCH'}")
     except FileNotFoundError as e:
         print(f"  Saved 1D: not found ({e})")
 
     try:
         saved_2d = load_saved_2d(ds, record_id)
         match = np.allclose(saved_2d.astype(float), steps['image'].astype(float), atol=1)
-        print(f"  Saved 2D: {saved_2d.shape}  match={'✓' if match else '✗'}")
+        print(f"  Saved 2D: {saved_2d.shape}  match={'OK' if match else 'MISMATCH'}")
     except FileNotFoundError as e:
         print(f"  Saved 2D: not found ({e})")
 
     # ── Generate plots ────────────────────────────────────────────
     print("  Generating plots...")
     plot_pipeline_overview(steps, ds, record_id, out_dir)
-    print("    ✓ 01_pipeline_lead_I.png")
+    print("    [OK] 01_pipeline_lead_I.png")
 
     plot_all_12_leads(steps['raw'], fs,
                       f"{ds.upper()} Record {record_id} — Raw 12 Leads  ({raw.shape})",
                       out_dir / '02_raw_12leads.png',
                       color=DATASET_INFO.get(ds,{}).get('color','#555'))
-    print("    ✓ 02_raw_12leads.png")
+    print("    [OK] 02_raw_12leads.png")
 
     plot_2d_image_construction(steps, ds, record_id, out_dir)
-    print("    ✓ 03_2d_image_construction.png")
+    print("    [OK] 03_2d_image_construction.png")
 
     plot_comparison_grid(steps, ds, record_id, out_dir)
-    print("    ✓ 04_all_leads_comparison.png")
+    print("    [OK] 04_all_leads_comparison.png")
 
     # Extra: 100 Hz normalized (what model actually receives)
     sig_100_z = normalize_per_lead(steps['sig_100'], clip_std=3.0)
@@ -346,9 +346,9 @@ def validate_single_ecg(ds: str, record_id: str):
                       f"{ds.upper()} Record {record_id} — 1D FM Input (12, 1000) @ 100 Hz z-scored",
                       out_dir / '05_fm_input_12leads.png',
                       color=DATASET_INFO.get(ds,{}).get('color','#555'))
-    print("    ✓ 05_fm_input_12leads.png")
+    print("    [OK] 05_fm_input_12leads.png")
 
-    print(f"\n  ✅ Complete. {len(list(out_dir.glob('*.png')))} plots in {out_dir}")
+    print(f"\n  [DONE] Complete. {len(list(out_dir.glob('*.png')))} plots in {out_dir}")
 
 
 if __name__ == '__main__':

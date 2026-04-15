@@ -1,8 +1,12 @@
 # app.py — ChagaSight backend (Flask)
 # Serves three model modes: 2D-only, 1D-only, Hybrid ensemble
 
+import base64
+import io
 import os
+import struct
 import sys
+import zlib
 from pathlib import Path
 from typing import List, Tuple
 
@@ -368,6 +372,146 @@ def predict():
             "interpretation": (
                 "Positive for Chagas Disease" if pred else "Negative for Chagas Disease"
             ),
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+    finally:
+        _cleanup(saved)
+
+
+# --------------------------------------------------
+# PNG encoder (stdlib only — no PIL/Pillow required)
+# --------------------------------------------------
+def _numpy_to_png_b64(arr: "np.ndarray") -> str:
+    """Encode a (H, W, 3) or (H, W) uint8 numpy array as a base-64 PNG string."""
+    import numpy as np
+    arr = np.asarray(arr, dtype=np.uint8)
+    if arr.ndim == 2:
+        arr = np.stack([arr, arr, arr], axis=-1)
+    H, W, C = arr.shape
+
+    def _pack_chunk(chunk_type: bytes, data: bytes) -> bytes:
+        ln = struct.pack(">I", len(data))
+        body = chunk_type + data
+        crc = struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+        return ln + body + crc
+
+    # PNG signature
+    png = b"\x89PNG\r\n\x1a\n"
+    # IHDR
+    ihdr_data = struct.pack(">IIBBBBB", W, H, 8, 2, 0, 0, 0)  # 8-bit RGB
+    png += _pack_chunk(b"IHDR", ihdr_data)
+    # IDAT — filter byte 0 before each row
+    raw_rows = b"".join(b"\x00" + arr[r].tobytes() for r in range(H))
+    compressed = zlib.compress(raw_rows, level=6)
+    png += _pack_chunk(b"IDAT", compressed)
+    # IEND
+    png += _pack_chunk(b"IEND", b"")
+
+    return base64.b64encode(png).decode("ascii")
+
+
+# --------------------------------------------------
+# /api/preview  — preprocessing pipeline only, no inference
+# --------------------------------------------------
+@app.route("/api/preview", methods=["POST"])
+def preview():
+    if "files" not in request.files:
+        return jsonify({"error": "Upload WFDB files using form-data key = files"}), 400
+
+    saved = _save_uploaded_files(request.files.getlist("files"))
+    try:
+        import numpy as np
+        record_base, record_name = _find_record(saved)
+
+        signal_raw_np, fields = wfdb.rdsamp(str(record_base))
+        fs = float(fields.get("fs", 500.0))
+        signal_raw_np = signal_raw_np.T.astype("float32")  # (12, T)
+
+        if signal_raw_np.shape[0] != 12:
+            return jsonify({"error": f"Expected 12-lead ECG, got shape {signal_raw_np.shape}"}), 400
+
+        def _stats(sig, fs_val):
+            s = np.array(sig, dtype=np.float32)
+            n = s.shape[1] if s.ndim > 1 else s.shape[0]
+            return {
+                "fs": fs_val,
+                "n_samples": int(n),
+                "amp_min": float(np.min(s)),
+                "amp_max": float(np.max(s)),
+                "duration_s": round(n / fs_val, 2),
+            }
+
+        def _subsample(sig, target=500):
+            """Downsample columns to at most `target` points for JSON transfer."""
+            s = np.array(sig, dtype=np.float32)
+            n = s.shape[1] if s.ndim > 1 else s.shape[0]
+            if n <= target:
+                return s.tolist()
+            step = max(1, n // target)
+            return s[:, ::step].tolist() if s.ndim > 1 else s[::step].tolist()
+
+        # Stage 1: raw (un-processed)
+        raw = signal_raw_np
+
+        # Stage 2: baseline removal (same fs)
+        after_br = remove_baseline(raw.copy(), method="bandpass", fs=fs)
+
+        # Stage 3: 100 Hz (1D pathway)
+        sig_100 = resample_signal(after_br.copy(), fs, 100.0)
+        sig_100 = normalize_per_lead(sig_100)
+        sig_100 = pad_or_trim(sig_100, 1000)
+
+        # Stage 4: 500 Hz (2D pathway)
+        sig_500 = resample_signal(after_br.copy(), fs, 500.0)
+        sig_500_norm = normalize_per_lead(sig_500.copy())
+
+        # Stage 5: 2D contour image
+        img = build_2d_image(sig_500_norm, target_width=2048)   # (3, 24, 2048) uint8
+        # Show channel 0 (RA-referenced) as greyscale-ish RGB for display
+        img_display = img[0]  # (24, 2048) uint8
+        img_rgb = np.stack([img_display, img[1], img[2]], axis=-1)  # (24, 2048, 3)
+        contour_b64 = "data:image/png;base64," + _numpy_to_png_b64(img_rgb)
+
+        stages = {
+            "raw": {
+                "label": "Raw WFDB",
+                "description": "Signal as read directly from the record — no processing applied.",
+                "color": "#64748b",
+                "signal": _subsample(raw),
+                "stats": _stats(raw, fs),
+            },
+            "baseline_removed": {
+                "label": "Baseline Removed",
+                "description": "Butterworth bandpass filter (0.5–40 Hz) removes baseline wander and high-frequency noise.",
+                "color": "#0c8ce9",
+                "signal": _subsample(after_br),
+                "stats": _stats(after_br, fs),
+            },
+            "sig_100hz": {
+                "label": "100 Hz — 1D Pathway Input",
+                "description": "Resampled to 100 Hz, per-lead z-score normalised, padded / trimmed to 1 000 samples.",
+                "color": "#0d9488",
+                "signal": sig_100.tolist(),
+                "stats": _stats(sig_100, 100.0),
+            },
+            "sig_500hz": {
+                "label": "500 Hz — 2D Pathway Input",
+                "description": "Resampled to 500 Hz, per-lead normalised. Used to build the 2D contour image.",
+                "color": "#8b5cf6",
+                "signal": _subsample(sig_500_norm),
+                "stats": _stats(sig_500_norm, 500.0),
+            },
+        }
+
+        return jsonify({
+            "record": record_name,
+            "leads": ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"],
+            "original_fs": fs,
+            "stages": stages,
+            "contour_image": contour_b64,
         })
 
     except Exception as e:

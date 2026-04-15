@@ -185,7 +185,7 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- 2D-ViT → Vision Features → REPA → Cosine Sim -->
+        <!-- 2D-ViT → Vision Features → REPA → aligned features → Cosine Sim -->
         <mxCell id="e_vit_vis" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_vit" target="n_vis_feat" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
@@ -196,13 +196,13 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- X' (FM features) → Cosine Sim -->
+        <!-- X' (FM features, detached) → Cosine Sim -->
         <mxCell id="e_xmod_cos" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_x_mod" target="n_cos_sim" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- Vision Features + X' → Classification Head -->
-        <mxCell id="e_vis_class" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="n_vis_feat" target="n_class_head" edge="1">
+        <!-- REPA (aligned_2d) + X' → Classification Head (not raw vision features) -->
+        <mxCell id="e_proj_class" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="n_proj_head" target="n_class_head" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_xmod_class" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_x_mod" target="n_class_head" edge="1">
