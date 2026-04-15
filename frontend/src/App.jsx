@@ -557,8 +557,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* 1-column vertical layout properly constrained */}
-            <div className="flex flex-col gap-6 max-w-3xl mx-auto">
+            {/* 3-column grid: model | input | result */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
               {/* ── COL 1: Model selector ── */}
               <div className="print:hidden" role="region" aria-label="Model selection">
