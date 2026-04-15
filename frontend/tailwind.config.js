@@ -11,15 +11,15 @@ export default {
       },
       fontSize: {
         // Fluid type scale — clamp(min, preferred-vw, max)
-        "fluid-2xs": "clamp(8px,  0.7vw,  10px)",
-        "fluid-xs":  "clamp(9px,  0.85vw, 11px)",
-        "fluid-sm":  "clamp(11px, 1.0vw,  13px)",
-        "fluid-base":"clamp(12px, 1.15vw, 15px)",
-        "fluid-lg":  "clamp(14px, 1.3vw,  18px)",
-        "fluid-xl":  "clamp(16px, 1.6vw,  22px)",
-        "fluid-2xl": "clamp(20px, 2.0vw,  28px)",
-        "fluid-3xl": "clamp(24px, 2.6vw,  36px)",
-        "fluid-4xl": "clamp(30px, 3.2vw,  48px)",
+        "fluid-2xs": "clamp(11px, 1.0vw,  13px)",
+        "fluid-xs":  "clamp(12px, 1.1vw,  14px)",
+        "fluid-sm":  "clamp(13px, 1.2vw,  15px)",
+        "fluid-base":"clamp(14px, 1.3vw,  17px)",
+        "fluid-lg":  "clamp(16px, 1.5vw,  20px)",
+        "fluid-xl":  "clamp(18px, 1.8vw,  24px)",
+        "fluid-2xl": "clamp(22px, 2.2vw,  30px)",
+        "fluid-3xl": "clamp(26px, 2.8vw,  38px)",
+        "fluid-4xl": "clamp(32px, 3.5vw,  52px)",
       },
       maxWidth: {
         // ~80 vw but capped at 1400 px
