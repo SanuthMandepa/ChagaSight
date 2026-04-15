@@ -1,0 +1,228 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.8 Chrome/140.0.7339.240 Electron/38.4.0 Safari/537.36" version="28.2.8">
+  <diagram name="Page-1" id="chagasight-dl">
+    <mxGraphModel dx="2084" dy="1252" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="827" math="0" shadow="0" adaptiveColors="none">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Input -->
+        <mxCell id="n_12lead" value="12 lead ECG" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+          <mxGeometry x="20" y="290" width="80" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Bounding boxes -->
+        <mxCell id="b_prep" value="Preprocessing" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=bottom;fillColor=#fce4ec;strokeColor=#c2185b;" parent="1" vertex="1">
+          <mxGeometry x="150" y="100" width="220" height="520" as="geometry" />
+        </mxCell>
+        <mxCell id="b_dl" value="Deep Learning Model" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=bottom;fillColor=none;strokeColor=#000000;" parent="1" vertex="1">
+          <mxGeometry x="400" y="100" width="950" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- Preprocessing nodes -->
+        <mxCell id="n_filter" value="Filter&#xa;(0.5–40 Hz bandpass)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="200" y="130" width="130" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Split into two paths -->
+        <mxCell id="n_500hz" value="500 Hz&#xa;resample" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="165" y="205" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="n_100hz" value="100 Hz&#xa;resample" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="270" y="205" width="80" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- 2D path (LEFT): pad-trim to 2048 samples -->
+        <mxCell id="n_3s" value="2048 samples&#xa;pad-trim" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="162" y="290" width="90" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- 1D path (RIGHT): pad-trim to 1000 samples -->
+        <mxCell id="n_10s" value="1000 samples&#xa;(10s) pad-trim" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="262" y="290" width="100" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- 2D path continues -->
+        <mxCell id="n_mixup" value="Lead-&#xa;mixup" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="165" y="380" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="n_img_construct" value="Image-&#xa;construction&#xa;(WCT → 3, 24, 2048)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="155" y="470" width="110" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- 1D path continues -->
+        <mxCell id="n_norm" value="Normalization&#xa;(z-score per lead)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="262" y="380" width="110" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- 1D FM Encoder -->
+        <mxCell id="n_fm_enc" value="FM Encoder (ECG&#xa;Foundational Model)&#xa;&lt;font color=&quot;#0000FF&quot;&gt;&lt;span style=&quot;font-size: 10px&quot;&gt;Pretrained: ST-MEM | AoL aggregation&lt;/span&gt;&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="430" y="375" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- 1D: X and X' feature vectors with FiLM modulation -->
+        <mxCell id="n_x_orig" value="X&#xa;(Original Feature&#xa;Vector)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="650" y="375" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n_x_mod" value="X&#39;&#xa;(FiLM-Modulated&#xa;Feature Vector)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="850" y="375" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="dummy_x" value="" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="800" y="400" width="1" height="1" as="geometry" />
+        </mxCell>
+
+        <!-- Demographics encoder -->
+        <mxCell id="n_demo_enc" value="Demographic&#xa;Encoder&#xa;(Age / Sex)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="750" y="175" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n_gamma" value="γ (Gamma)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="700" y="260" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n_beta" value="β (Beta)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="800" y="260" width="80" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- 2D ViT (no CNN stem — patch embedding is built into ViT) -->
+        <mxCell id="n_vit" value="2D-ViT (Patch Embed + Transformer)&#xa;&lt;font color=&quot;#0000FF&quot;&gt;&lt;span style=&quot;font-size: 10px&quot;&gt;Conv2d patch embed (8×64) | Pretrained: MAE | AoL aggregation&lt;/span&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1bee7;strokeColor=#9c27b0;" parent="1" vertex="1">
+          <mxGeometry x="570" y="470" width="260" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n_vis_feat" value="Vision Features&#xa;(2D, 768-dim)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="858" y="468" width="110" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- REPA -->
+        <mxCell id="n_proj_head" value="Projection&#xa;Head&#xa;(REPA)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffff8d;strokeColor=#ffeb3b;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="1000" y="460" width="100" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Classification -->
+        <mxCell id="n_class_head" value="Classification&#xa;Head&#xa;(1536→512→256→1)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#c5cae9;strokeColor=#3f51b5;" parent="1" vertex="1">
+          <mxGeometry x="1150" y="375" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="n_prob" value="Chagas&#xa;probability" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="1170" y="245" width="100" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Loss -->
+        <mxCell id="n_cos_sim" value="Cosine Similarity&#xa;(Alignment Loss)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="990" y="245" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="n_loss_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;" parent="1" vertex="1">
+          <mxGeometry x="820" y="120" width="510" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="n_loss_txt" value="Loss =" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="840" y="125" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n_proj_loss_txt" value="REPA Alignment Loss" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="970" y="125" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="n_bce_loss_txt" value="+ Asymmetric BCE loss" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="125" width="170" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== EDGES ===================== -->
+
+        <!-- ECG input → Filter -->
+        <mxCell id="e_in_filt" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;" parent="1" source="n_12lead" target="n_filter" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Filter → 500 Hz (left) and 100 Hz (right) -->
+        <mxCell id="e_filt_500" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_filter" target="n_500hz" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_filt_100" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_filter" target="n_100hz" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 2D path: 500 Hz → 2048 pad-trim → lead-mixup → image-construct → ViT -->
+        <mxCell id="e_500_3s" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_500hz" target="n_3s" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_3s_mixup" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_3s" target="n_mixup" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mixup_img" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_mixup" target="n_img_construct" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Image → 2D-ViT directly (no CNN stem) -->
+        <mxCell id="e_img_vit" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="n_img_construct" target="n_vit" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 1D path: 100 Hz → 1000 samples pad-trim → normalization → FM encoder -->
+        <mxCell id="e_100_10s" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_100hz" target="n_10s" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_10s_norm" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_10s" target="n_norm" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_norm_fm" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="n_norm" target="n_fm_enc" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- FM → X (original features) → dummy → X' (FiLM modulated) -->
+        <mxCell id="e_fm_xorig" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_fm_enc" target="n_x_orig" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_xorig_dummy" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_x_orig" target="dummy_x" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dummy_xmod" style="endArrow=classic;html=1;rounded=0;" parent="1" source="dummy_x" target="n_x_mod" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Demographics → gamma, beta → FiLM mixing point -->
+        <mxCell id="e_demo_gamma" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_demo_enc" target="n_gamma" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_demo_beta" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n_demo_enc" target="n_beta" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gamma_cross" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="n_gamma" target="dummy_x" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_beta_cross" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="n_beta" target="dummy_x" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 2D-ViT → Vision Features → REPA → Cosine Sim -->
+        <mxCell id="e_vit_vis" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_vit" target="n_vis_feat" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vis_proj" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_vis_feat" target="n_proj_head" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_proj_cos" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_proj_head" target="n_cos_sim" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- X' (FM features) → Cosine Sim -->
+        <mxCell id="e_xmod_cos" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_x_mod" target="n_cos_sim" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Vision Features + X' → Classification Head -->
+        <mxCell id="e_vis_class" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="n_vis_feat" target="n_class_head" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_xmod_class" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_x_mod" target="n_class_head" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Classification Head → Chagas probability -->
+        <mxCell id="e_class_prob" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_class_head" target="n_prob" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Losses -->
+        <mxCell id="e_cos_loss" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_cos_sim" target="n_proj_loss_txt" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_prob_loss" style="endArrow=classic;html=1;rounded=0;" parent="1" source="n_prob" target="n_bce_loss_txt" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
