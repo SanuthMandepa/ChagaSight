@@ -33,7 +33,7 @@
 | **NFR04** | Maintainability | The codebase shall be organised into discrete functional modules — encompassing preprocessing, model architectures, training, evaluation, API serving, and the frontend — following separation of concerns principles, with version control maintained throughout development using Git. | Should Have |
 | **NFR05** | Usability | The frontend interface shall be responsive across standard desktop screen sizes and browsers including Chrome, Firefox, and Edge. | Should Have |
 | **NFR06** | Compliance | The system shall display a research disclaimer on all prediction result views and shall operate exclusively with de-identified, publicly available datasets. | Should Have |
-| **NFR07** | Clinical Transparency | The system shall provide direct visual access to the uploaded ECG recording alongside the inference result, rendering all twelve leads as individual waveforms and displaying the derived 2D spatial ECG image. This enables clinicians to visually verify the input signal the model processed, supporting informed review of automated screening outputs without requiring knowledge of the underlying architecture. | Could Have |
+| **NFR07** | Clinical Transparency | The system shall provide direct visual access to the uploaded ECG recording alongside the inference result, rendering all twelve leads as individual waveforms and displaying the derived 2D spatial ECG image. | Could Have |
 
 ---
 
