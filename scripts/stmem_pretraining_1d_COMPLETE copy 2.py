@@ -5,18 +5,14 @@ CRITICAL FIX: This version includes PER-LEAD MASKING (prevents cross-lead leakag
 PLUS: Batch-level checkpointing (saves every 500 batches)
 
 Features:
-- Per-lead masking (Van Santvliet et al. 2025) ✓ CRITICAL
-- Batch-level checkpointing (no progress lost) ✓
-- Auto-resume from exact batch ✓
-- Signal handler (Ctrl+C safe) ✓
-- Time tracking and ETA ✓
+- Per-lead masking (Van Santvliet et al. 2025)  CRITICAL
+- Batch-level checkpointing (no progress lost) 
+- Auto-resume from exact batch 
+- Signal handler (Ctrl+C safe) 
+- Time tracking and ETA 
 
-Usage:
-# Test with 1% data
-python stmem_pretraining_1d_CORRECTED.py --subset 0.01 --epochs 5
 
-# Full training (recommended)
-python stmem_pretraining_1d_CORRECTED.py --epochs 30
+
 """
 
 import sys

@@ -2,7 +2,7 @@
 
 ## G.1 Functional Testing Test Cases
 
-All functional test cases were executed against the deployed ChagaSight prototype. The table below records the prerequisite state, input data, expected output, actual output, and execution status for each test case derived from the Must Have and Should Have functional requirements (FR01–FR07). Deferred Will Not Have requirements (FR09, FR10) were excluded.
+All functional test cases were executed against the deployed ChagaSight prototype. The table below records the prerequisite state, input data, expected output, actual output, and execution status for each test case derived from the Must Have and Should Have functional requirements (FR01–FR07). Deferred Will Not Have requirements (FR09, FR10) were excluded from execution scope.
 
 **Table G.1: Functional Testing Test Cases.**
 
@@ -26,30 +26,48 @@ All functional test cases were executed against the deployed ChagaSight prototyp
 
 ### G.2.1 Performance Testing (NFR02, DG02)
 
-System performance was evaluated for computational efficiency and inference latency on the local development environment (NVIDIA RTX 3050, 6 GB VRAM). Processing standard 10-second, 12-lead WFDB recordings through the complete pipeline — from zero-phase Butterworth filtering and spatial tensor construction to ensemble probability generation — was consistently completed within **2.8 to 4.2 seconds**, comfortably within the 10-second NFR02 threshold.
+> **HOW TO CAPTURE:** Run the ChagaSight application. Open browser developer tools (F12) > Network tab. Upload a standard 10-second WFDB recording and click Analyse. Screenshot the network timeline showing the inference request round-trip time. Save as `thesis_figures/performance_browser_results.png`.
+
+System performance was evaluated for computational efficiency and inference latency on the local development environment (NVIDIA RTX 3050, 6 GB VRAM). Processing a standard 10-second, 12-lead WFDB recording through the complete pipeline — from zero-phase Butterworth filtering and spatial tensor construction to ensemble probability generation — was consistently completed within **2.8 to 4.2 seconds**, well within the 10-second NFR02 threshold.
 
 Frontend responsiveness was profiled using browser developer tools, confirming acceptable JavaScript execution times and DOM rendering behaviour with no blocking of main interaction threads.
 
 ![Performance testing — browser developer tools profiling](thesis_figures/performance_browser_results.png)
 *Figure G.1: Performance testing — browser developer tools network profiling confirming inference round-trip within the NFR02 threshold.*
 
+---
+
 ### G.2.2 GUI Testing (NFR05, DG06)
 
-Usability and interface stability were assessed to confirm that non-technical operators can navigate the system without requiring knowledge of the underlying ML architecture. Google Lighthouse profiling was applied to formalise accessibility, best practice, and structural performance scores. The interface effectively isolates user-facing complexity, presenting only the file upload boundary, demographic inputs, model selector, and result panel.
+> **HOW TO CAPTURE:** Open the ChagaSight application in Google Chrome. In the browser address bar, go to the Lighthouse tab in DevTools (F12 > Lighthouse). Run a Desktop audit. Screenshot the full results page showing Accessibility, Best Practices, and Performance scores. Save as `thesis_figures/gui_lighthouse_testing.png`.
+
+Usability and interface stability were assessed to verify that non-technical operators can navigate the system without requiring knowledge of the underlying model architecture. Google Lighthouse profiling was applied to formalise accessibility, best-practice, and structural performance scores. The interface presents only the file upload control, demographic inputs, model selector, and result panel to the user.
 
 ![GUI testing — Google Lighthouse profiling](thesis_figures/gui_lighthouse_testing.png)
 *Figure G.2: GUI testing — Google Lighthouse audit results confirming accessibility and best-practice compliance.*
 
+---
+
 ### G.2.3 Maintainability Testing (NFR04, DG07)
 
-Code maintainability is enforced through strict separation of concerns across the project structure: frontend handlers, Flask API endpoints, preprocessing pipeline modules, and model inference components are maintained in independent modules with clearly defined interfaces. This structure enables isolated modification of any individual component without propagating changes across the system. Static code quality analysis via CodeFactor was used to assess adherence to Python PEP 8 and JavaScript style standards.
+> **HOW TO CAPTURE:** Go to [codefactor.io](https://www.codefactor.io) and sign in with GitHub. Connect the ChagaSight repository. Screenshot the project analysis summary page showing the overall grade, issues found, and file breakdown. Save as `thesis_figures/maintainability_codefactor.png`.
+
+Code maintainability is enforced through strict separation of concerns across the project structure: frontend handlers, Flask API endpoints, preprocessing pipeline modules, and model inference components are maintained in independent modules with clearly defined interfaces. This structure allows isolated modification of any individual component without propagating changes across the system. Static code quality analysis via CodeFactor was used to assess adherence to Python PEP 8 and JavaScript style standards.
 
 ![Maintainability testing — CodeFactor analysis results](thesis_figures/maintainability_codefactor.png)
 *Figure G.3: Maintainability testing — CodeFactor static code analysis results.*
 
+---
+
 ### G.2.4 Compatibility Testing (NFR05, DG06)
 
-Cross-browser and responsive layout testing validated that the ChagaSight interface maintains structural integrity across primary rendering environments. Browser developer tools were used to simulate a range of viewport widths. Testing confirmed correct adaptive layout behaviour at standard desktop resolutions (1920×1080, 1366×768) across Google Chrome, Mozilla Firefox, and Microsoft Edge.
+> **HOW TO CAPTURE (desktop):** Open the ChagaSight application in Microsoft Edge, then in Google Chrome. For each browser: open DevTools > Toggle device toolbar (Ctrl+Shift+M). Set viewport to 1920x1080 (desktop). Screenshot the full application UI without the DevTools panel visible. Save as:
+> - `thesis_figures/compatibility_desktop_edge.png`
+> - `thesis_figures/compatibility_desktop_chrome.png`
+>
+> **HOW TO CAPTURE (mobile):** In Chrome DevTools, set the device to a mobile preset (e.g., iPhone 12 Pro or similar). Screenshot the full page showing the responsive layout. Save as `thesis_figures/compatibility_mobile.png`.
+
+Cross-browser and responsive layout testing validated that the ChagaSight interface maintains structural integrity across primary rendering environments. Testing confirmed correct adaptive layout behaviour at standard desktop resolutions (1920x1080, 1366x768) across Google Chrome, Mozilla Firefox, and Microsoft Edge.
 
 ![Compatibility testing — Microsoft Edge desktop rendering](thesis_figures/compatibility_desktop_edge.png)
 *Figure G.4: Compatibility testing — Microsoft Edge at standard desktop resolution.*
@@ -60,19 +78,31 @@ Cross-browser and responsive layout testing validated that the ChagaSight interf
 ![Compatibility testing — responsive mobile scaling](thesis_figures/compatibility_mobile.png)
 *Figure G.6: Compatibility testing — responsive layout scaling across reduced viewport widths.*
 
+---
+
 ### G.2.5 Security and Data Protection Testing (NFR03, DG08)
+
+> **HOW TO CAPTURE:** Go to the ChagaSight GitHub repository > Security tab > Code scanning > CodeQL. Screenshot the scan results summary showing zero high-severity findings. Save as `thesis_figures/security_codeql_results.png`.
+>
+> **Alternative if CodeQL is not set up:** Go to GitHub repository Settings > Code security and analysis > Enable CodeQL. Wait for the initial scan to complete, then screenshot the results.
 
 Data minimisation was verified by confirming that uploaded `.hea` and `.dat` files do not persist in backend storage beyond the inference cycle. Post-inference inspection of the `/uploads` directory consistently returned an empty state, confirming that the `_cleanup()` subroutine executes reliably. CodeQL static analysis was applied to the project repository to identify potential injection vulnerabilities or unsafe dependency usage at the source code level.
 
 ![Security testing — CodeQL analysis results](thesis_figures/security_codeql_results.png)
 *Figure G.7: Security testing — CodeQL static analysis results confirming absence of injection vulnerabilities.*
 
+---
+
 ### G.2.6 Repository Status
+
+> **HOW TO CAPTURE:** Navigate to the ChagaSight GitHub repository main page in the browser. Screenshot the main page showing the repository name, commit count, branch, latest commit message, and the green "commit activity" graph. Save as `thesis_figures/repo_status.png`.
 
 The project repository was maintained in a stable state throughout development, with all training runs, preprocessing changes, and deployment configurations tracked under version control.
 
 ![GitHub repository status](thesis_figures/repo_status.png)
 *Figure G.8: ChagaSight GitHub repository status confirming active version control and commit history.*
+
+---
 
 ### G.2.7 Non-Functional and Design Goal Test Cases
 
@@ -80,11 +110,11 @@ The project repository was maintained in a stable state throughout development, 
 
 | Test Case | Requirement | Result Description | Status |
 |:---|:---|:---|:---|
-| TC-NF01 | NFR01 / DG01 | Ensemble AUROC = 0.8707 [95% CI: 0.8665–0.8746]; AUPRC = 0.2589; both metrics exceed the NFR01 minimum (AUROC ≥ 0.85) across all five cross-validation folds. | **Pass** |
+| TC-NF01 | NFR01 / DG01 | Ensemble AUROC = 0.8707 [95% CI: 0.8665–0.8746]; AUPRC = 0.2589; both metrics exceed the NFR01 minimum (AUROC >= 0.85) across all five cross-validation folds. | **Pass** |
 | TC-NF02 | NFR02 / DG02 | Complete inference pipeline (WFDB ingestion, preprocessing, 5-fold ensemble, result delivery) completed within 2.8–4.2 seconds on the local environment; within the 10-second requirement. | **Pass** |
 | TC-NF03 | NFR03 / DG08 | Post-inference `/uploads` directory confirmed empty; `_cleanup()` subroutine fires correctly after every inference cycle irrespective of success or error state. | **Pass** |
 | TC-NF04 | NFR04 / DG07 | Project structure enforces module boundaries across preprocessing, model, frontend, and API components; Git version history maintained throughout development lifecycle. | **Pass** |
-| TC-NF05 | NFR05 / DG06 | Responsive layout confirmed across Chrome, Firefox, and Edge at 1920×1080 and 1366×768 resolutions; no element overlap or CSS distortion observed. | **Pass** |
+| TC-NF05 | NFR05 / DG06 | Responsive layout confirmed across Chrome, Firefox, and Edge at 1920x1080 and 1366x768 resolutions; no element overlap or CSS distortion observed. | **Pass** |
 | TC-NF06 | NFR06 | "Research Prototype" disclaimer displayed on all prediction result views; system operates exclusively on de-identified, publicly available datasets (SaMi-Trop, PTB-XL, CODE-15%). | **Pass** |
 | TC-NF07 | NFR07 | All twelve ECG leads rendered as individual waveforms in the results panel; 2D spatial ECG image displayed alongside the prediction output. Clinicians can visually inspect the input signal processed during inference without knowledge of the underlying architecture. | **Pass** |
 | TC-NF08 | DG03 | Zero-phase Butterworth filtering and per-lead Z-score normalisation execute consistently across WFDB recordings from all three source datasets without signal-specific configuration. | **Pass** |
@@ -97,7 +127,13 @@ The project repository was maintained in a stable state throughout development, 
 
 ### G.3.1 Self-Supervised Pretraining (Phase 1)
 
-Phase 1 pretraining captures the isolated convergence of the Masked Autoencoder (MAE) objective applied to the 2D spatial pathway and the Spatio-Temporal Masked ECG Modelling (ST-MEM) objective governing the 1D temporal pathway. These figures record the execution logs confirming successful pretraining completion prior to supervised fine-tuning.
+> **HOW TO CAPTURE:** Locate the training terminal output logs from the MAE pretraining run and the ST-MEM pretraining run. Screenshot the final portion of each log showing loss values across the final epochs and the completion message. Save as:
+> - `thesis_figures/training_mae_pretraining.png` (MAE / 2D pathway log)
+> - `thesis_figures/training_stmem_pretraining.png` (ST-MEM / 1D pathway log)
+>
+> If logs were not saved to file, they may be recoverable from the training script output history or from any saved checkpoint metadata. Alternatively, re-run the pretraining for a small number of epochs to generate a representative log screenshot.
+
+Phase 1 pretraining captures the isolated convergence of the Masked Autoencoder (MAE) objective applied to the 2D spatial pathway and the Spatio-Temporal Masked ECG Modelling (ST-MEM) objective governing the 1D temporal pathway. The figures below record the execution logs confirming successful pretraining completion prior to supervised fine-tuning.
 
 ![MAE pretraining execution log](thesis_figures/training_mae_pretraining.png)
 *Figure G.9: Training log — Masked Autoencoder (MAE, 2D pathway) pretraining execution. 30 epochs completed on the full preprocessing cohort.*
@@ -105,20 +141,22 @@ Phase 1 pretraining captures the isolated convergence of the Masked Autoencoder 
 ![ST-MEM pretraining execution log](thesis_figures/training_stmem_pretraining.png)
 *Figure G.10: Training log — Spatio-Temporal Masked ECG Modelling (ST-MEM, 1D pathway) pretraining execution. 30 epochs completed.*
 
+---
+
 ### G.3.2 Supervised Fine-Tuning (Folds 0–4)
 
-Cross-fold training progression logs record per-epoch AUROC, AUPRC, and loss convergence for all five fold models over the full dataset.
+Cross-fold training progression figures record per-epoch training loss, gradient L2 norm, and validation AUROC for all five fold models over Phase 2 supervised fine-tuning. A combined overview across all folds is presented in **Figure G.13**.
 
-![Training progression — Fold 0](thesis_figures/training_fold_0.png)
-*Figure G.11: Supervised fine-tuning progression — Hybrid Ensemble Fold 0 (n ≈ 292,944 training, n = 94,037 validation).*
+![Training progression — Fold 0](../thesis_figures/fig_c8_fold0_comprehensive.png)
+*Figure G.11: Supervised fine-tuning progression — Hybrid Ensemble Fold 0. Training loss (left), gradient L2 norm (centre), and validation AUROC (right) over 24,000 iterations. Best AUROC = 0.8503.*
 
-![Training progression — Fold 1](thesis_figures/training_fold_1.png)
-*Figure G.12: Supervised fine-tuning progression — Hybrid Ensemble Fold 1 (n ≈ 313,745 training, n = 73,236 validation).*
-
-The combined training curve overview across all five folds is provided in **Figure G.13**.
+![Training progression — Fold 1](../thesis_figures/fig_c8_fold1_comprehensive.png)
+*Figure G.12: Supervised fine-tuning progression — Hybrid Ensemble Fold 1. Best AUROC = 0.7606.*
 
 ![Cross-validation training curves — all folds](../thesis_figures/fig_appendix_training_curves_all_folds.png)
 *Figure G.13: Training progression across all five cross-validation folds — AUROC and AUPRC convergence during supervised fine-tuning on the full 366,181-sample dataset.*
+
+---
 
 ### G.3.3 Intermediate Training Run (83k Dataset)
 
@@ -127,7 +165,13 @@ Prior to scaling to the full 366,181-sample cohort, an intermediate training run
 ![83k dataset ROC and PR curves](../thesis_figures/fig_appendix_83k_roc_pr.png)
 *Figure G.14: ROC curve (AUROC = 0.9275) and Precision-Recall curve (AUPRC = 0.4973) for the intermediate 83,130-sample checkpoint. The higher metrics relative to the full dataset reflect the elevated positive prevalence (3.42%) in this subset and the reduced heterogeneity of the test set at this training scale.*
 
+---
+
 ### G.3.4 Ablation Studies (Individual Pathways)
+
+> **HOW TO CAPTURE:** Locate the training terminal output logs from the 1D-only ablation fine-tuning run and the 2D-only ablation fine-tuning run. Screenshot the final portion of each log showing the best validation AUROC achieved and the training completion message. Save as:
+> - `thesis_figures/training_1d_ablation.png` (1D-only / ST-MEM backbone ablation run)
+> - `thesis_figures/training_2d_ablation.png` (2D-only / MAE backbone ablation run)
 
 Individual pathway fine-tuning logs record the independent training progression of the 1D-only and 2D-only models used in the ablation study reported in Section 8.5.1.
 
