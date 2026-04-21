@@ -3,6 +3,7 @@
 
 import base64
 import io
+import logging
 import os
 import struct
 import sys
@@ -375,7 +376,8 @@ def predict():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        logging.exception("Error during inference")
+        return jsonify({"error": "An internal error occurred during inference."}), 400
 
     finally:
         _cleanup(saved)
@@ -525,7 +527,8 @@ def preview():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        logging.exception("Error during contour analysis")
+        return jsonify({"error": "An internal error occurred during analysis."}), 400
 
     finally:
         _cleanup(saved)
