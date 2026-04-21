@@ -59,6 +59,7 @@ Paper: Van Santvliet et al. (2025)
   Phase 2: FM unfrozen, differential LR, 12000 iters, accum=1
 """
 
+import math
 import warnings
 import torch
 import torch.nn as nn
@@ -459,7 +460,7 @@ class ChagasTrainer:
             )
             accum_step = (accum_step + 1) % grad_accum
 
-            if loss == loss:  # not nan
+            if not math.isnan(loss):
                 running_loss.append(loss)
                 if len(running_loss) > 50:
                     running_loss.pop(0)
