@@ -84,7 +84,7 @@ const MODEL_OPTIONS = [
 /* ───────── Sample ECGs ───────── */
 const SAMPLE_ECGS = [
   { dataset: "SAMITROP", label: "SAMITROP", desc: "Chagas endemic region (Brazil)", color: "brand", path: "samitrop", files: ["100726.hea", "100726.dat"] },
-  { dataset: "PTB-XL",   label: "PTB-XL",   desc: "European clinical database",    color: "teal",   path: "ptbxl",   files: ["00001_lr.hea", "00001_lr.dat"] },
+  { dataset: "PTB-XL",   label: "PTB-XL",   desc: "European clinical database",    color: "teal",   path: "ptbxl",   files: ["00006_lr.hea", "00006_lr.dat"] },
   { dataset: "CODE-15%", label: "CODE-15%", desc: "Brazilian 12-lead database",    color: "purple", path: "code15s", files: ["13.hea", "13.dat"] },
 ];
 
