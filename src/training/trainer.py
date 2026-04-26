@@ -11,10 +11,10 @@ CRITICAL BUG #A — "Val subset had only one class" (every validation)
   (PTB-XL first ~4367 rows, then SaMi-Trop, then CODE-15). When taking
   first 2000 samples, ALL come from PTB-XL which has 0 Chagas cases.
   The one-class guard triggers and falls back to FULL validation every time.
-  
+
   Impact: Every mid-training validation check takes 8-10 min instead of ~2 min.
   Phase 2 has 24 validation checks → +3.2 hours wasted.
-  
+
   Fix: _build_val_subset() pre-computes a STRATIFIED random subset of val indices
   at trainer init time, guaranteeing both classes are always present.
   Uses numpy to sample separately from positive/negative indices.
@@ -23,7 +23,7 @@ CRITICAL BUG #B — Phase 2 uses grad_accum=4 (same as Phase 1)
   Root cause: v3 trainer has single grad_accum_steps for both phases.
   Phase 1: 85M params frozen → accum=4 matches paper eff.batch=64, fast.
   Phase 2: ALL 173M params training → accum=4 = ~30 hours on RTX 3050.
-  
+
   Fix: Separate phase1_grad_accum and phase2_grad_accum parameters.
   phase1_grad_accum=4  → eff.batch=64, ~35 min ✓
   phase2_grad_accum=1  → eff.batch=16, ~8 hours ✓
@@ -31,7 +31,7 @@ CRITICAL BUG #B — Phase 2 uses grad_accum=4 (same as Phase 1)
 BUG #C — metrics.py compute_metrics() called without fast=True
   Root cause: v3 trainer always uses 10000 permutations.
   Mid-training validation only needs a quick estimate.
-  
+
   Fix: fast=True → 1000 permutations (~0.1s vs ~1.5s per call).
   End-of-phase always uses 10000 permutations (official).
 
@@ -130,15 +130,15 @@ class ChagasTrainer:
         self.val_loader = val_loader
         self.device = device
 
-        self.phase1_iterations  = phase1_iterations
-        self.phase2_iterations  = phase2_iterations
-        self.phase1_lr          = phase1_lr
-        self.phase2_lr_high     = phase2_lr_high
-        self.phase2_lr_low      = phase2_lr_low
-        self.val_every_n_iters  = val_every_n_iters
-        self.max_grad_norm      = max_grad_norm
-        self.warmup_iters       = warmup_iters
-        self.val_subset_size    = val_subset_size
+        self.phase1_iterations = phase1_iterations
+        self.phase2_iterations = phase2_iterations
+        self.phase1_lr = phase1_lr
+        self.phase2_lr_high = phase2_lr_high
+        self.phase2_lr_low = phase2_lr_low
+        self.val_every_n_iters = val_every_n_iters
+        self.max_grad_norm = max_grad_norm
+        self.warmup_iters = warmup_iters
+        self.val_subset_size = val_subset_size
         self.val_n_permutations = val_n_permutations
 
         # Handle backward-compatible grad_accum_steps
@@ -153,23 +153,23 @@ class ChagasTrainer:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         self.use_amp = use_amp
-        self.scaler  = GradScaler('cuda') if use_amp else None
+        self.scaler = GradScaler('cuda') if use_amp else None
 
         self.criterion = CombinedLoss()
 
-        self.best_val_score    = 0.0
-        self.current_phase     = 1
+        self.best_val_score = 0.0
+        self.current_phase = 1
         self.current_iteration = 0
-        self.skipped_batches   = 0
+        self.skipped_batches = 0
         self.history = {
             'train_loss': [], 'val_loss': [],
-            'val_auroc':  [], 'val_tpr_5pct': [],
-            'grad_norm':  [],
+            'val_auroc': [], 'val_tpr_5pct': [],
+            'grad_norm': [],
         }
 
         # Pre-compute stratified val subset (FIX #A)
         self._val_subset_indices = None
-        self._val_subset_loader  = None
+        self._val_subset_loader = None
         if val_subset_size is not None:
             self._build_val_subset()
 
@@ -257,9 +257,9 @@ class ChagasTrainer:
                 lr=self.phase1_lr, weight_decay=1e-4, betas=(0.9, 0.999),
             )
         return AdamW([
-            {'params': self.model.vit_2d.parameters(),    'lr': self.phase2_lr_low},
+            {'params': self.model.vit_2d.parameters(), 'lr': self.phase2_lr_low},
             {'params': self.model.vit_1d_fm.parameters(), 'lr': self.phase2_lr_low},
-            {'params': self.model.repa.parameters(),       'lr': self.phase2_lr_high},
+            {'params': self.model.repa.parameters(), 'lr': self.phase2_lr_high},
             {'params': self.model.classifier.parameters(), 'lr': self.phase2_lr_high},
         ], weight_decay=1e-4, betas=(0.9, 0.999))
 
@@ -283,17 +283,17 @@ class ChagasTrainer:
             train_iter = iter(self.train_loader)
             batch = next(train_iter)
 
-        images  = batch['image'].to(self.device, non_blocking=True)
+        images = batch['image'].to(self.device, non_blocking=True)
         signals = batch['signal'].to(self.device, non_blocking=True)
-        ages    = batch['age'].to(self.device, non_blocking=True)
-        sexes   = batch['sex'].to(self.device, non_blocking=True)
-        labels  = batch['label'].to(self.device, non_blocking=True)
+        ages = batch['age'].to(self.device, non_blocking=True)
+        sexes = batch['sex'].to(self.device, non_blocking=True)
+        labels = batch['label'].to(self.device, non_blocking=True)
 
         is_last_accum = (accum_step + 1) % grad_accum == 0
 
         with autocast('cuda', enabled=self.use_amp):
             outputs = self.model(images, signals, ages, sexes)
-            losses  = self.criterion(
+            losses = self.criterion(
                 outputs['logits'].squeeze(-1), labels,
                 outputs['aligned_2d_features'], outputs['fm_features'],
             )
@@ -344,16 +344,16 @@ class ChagasTrainer:
             for batch_idx, batch in enumerate(val_pbar):
                 if batch_idx >= max_batches:
                     break
-                images      = batch['image'].to(self.device, non_blocking=True)
-                signals     = batch['signal'].to(self.device, non_blocking=True)
-                ages        = batch['age'].to(self.device, non_blocking=True)
-                sexes       = batch['sex'].to(self.device, non_blocking=True)
-                labels      = batch['label'].to(self.device, non_blocking=True)
+                images = batch['image'].to(self.device, non_blocking=True)
+                signals = batch['signal'].to(self.device, non_blocking=True)
+                ages = batch['age'].to(self.device, non_blocking=True)
+                sexes = batch['sex'].to(self.device, non_blocking=True)
+                labels = batch['label'].to(self.device, non_blocking=True)
                 hard_labels = batch['hard_label']
 
                 with autocast('cuda', enabled=self.use_amp):
                     outputs = self.model(images, signals, ages, sexes)
-                    losses  = self.criterion(
+                    losses = self.criterion(
                         outputs['logits'].squeeze(-1), labels,
                         outputs['aligned_2d_features'], outputs['fm_features'],
                     )
@@ -383,9 +383,9 @@ class ChagasTrainer:
         if fast and self._val_subset_loader is not None:
             # Use pre-computed stratified subset (GUARANTEED to have both classes)
             n_total = len(self._val_subset_indices)
-            n_pos   = int(sum(1 for i in self._val_subset_indices
-                             if self.val_loader.dataset.df['label_hard'].iloc[i] == 1)
-                         if hasattr(self.val_loader.dataset, 'df') else 0)
+            n_pos = int(sum(1 for i in self._val_subset_indices
+                            if self.val_loader.dataset.df['label_hard'].iloc[i] == 1)
+                        if hasattr(self.val_loader.dataset, 'df') else 0)
             desc = f"Val subset ({n_total} samples, stratified)"
             avg_loss, all_probs, all_labels = self._run_val_loop(
                 self._val_subset_loader,
@@ -413,7 +413,7 @@ class ChagasTrainer:
     def save_checkpoint(self, fold, phase, iteration, val_score, metrics, optimizer,
                         is_best=False):
         state = {
-            'model_state_dict':     self.model.state_dict(),
+            'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'phase': phase, 'iteration': iteration,
             'val_score': val_score, 'best_val_score': self.best_val_score,
@@ -432,11 +432,11 @@ class ChagasTrainer:
         self.model.load_state_dict(ckpt['model_state_dict'])
         if optimizer and 'optimizer_state_dict' in ckpt:
             optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        self.current_phase     = ckpt.get('phase', 1)
+        self.current_phase = ckpt.get('phase', 1)
         self.current_iteration = ckpt.get('iteration', 0)
-        self.best_val_score    = ckpt.get('best_val_score', 0.0)
-        self.history           = ckpt.get('history', self.history)
-        self.skipped_batches   = ckpt.get('skipped_batches', 0)
+        self.best_val_score = ckpt.get('best_val_score', 0.0)
+        self.history = ckpt.get('history', self.history)
+        self.skipped_batches = ckpt.get('skipped_batches', 0)
         if self.scaler and 'scaler_state_dict' in ckpt:
             self.scaler.load_state_dict(ckpt['scaler_state_dict'])
         print(f" Resumed  Phase={self.current_phase}  Iter={self.current_iteration}"
@@ -447,12 +447,12 @@ class ChagasTrainer:
 
     def _run_phase(self, fold, phase, total_iters, start_iter,
                    optimizer, scheduler, grad_accum) -> Dict:
-        label      = f"Phase {phase}"
+        label = f"Phase {phase}"
         train_iter = iter(self.train_loader)
-        progress   = tqdm(total=total_iters, initial=start_iter,
-                          desc=label, dynamic_ncols=True)
+        progress = tqdm(total=total_iters, initial=start_iter,
+                        desc=label, dynamic_ncols=True)
         running_loss = []
-        accum_step   = 0
+        accum_step = 0
 
         for iteration in range(start_iter, total_iters):
             loss, train_iter = self.train_iteration(
@@ -544,12 +544,12 @@ class ChagasTrainer:
         if resume_from and Path(resume_from).exists():
             self.load_checkpoint(resume_from)
             start_phase = self.current_phase
-            start_iter  = self.current_iteration
+            start_iter = self.current_iteration
             if start_phase == 2:
                 self.unfreeze_fm()
         else:
             start_phase = 1
-            start_iter  = 0
+            start_iter = 0
             self.current_phase = self.current_iteration = 0
 
         # ── Phase 1 ─────────────────────────────────────────────────
@@ -574,7 +574,7 @@ class ChagasTrainer:
             self.current_phase = 2
             self.current_iteration = 0
             start_phase = 2
-            start_iter  = 0
+            start_iter = 0
 
         # ── Phase 2 ─────────────────────────────────────────────────
         if start_phase == 2:
