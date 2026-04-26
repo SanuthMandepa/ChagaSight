@@ -31,6 +31,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Download models from HF Hub if not present locally
 # --------------------------------------------------
 HF_REPO = "sanuthmandepa/chagasight-models"
+HF_REVISION = os.environ.get("HF_REVISION", "main")
 _models_dir = ROOT / "models"
 _models_dir.mkdir(exist_ok=True)
 
@@ -49,6 +50,7 @@ if _missing:
                 repo_id=HF_REPO,
                 filename=_hf_files[fname],
                 local_dir=str(_models_dir),
+                revision=HF_REVISION,
             )
             print(f"[HF]  {fname} ready.")
     except Exception as _hf_err:
@@ -244,7 +246,7 @@ def _cleanup(paths: List[Path]) -> None:
         try:
             p.unlink(missing_ok=True)
         except Exception:
-            pass
+            logging.warning("Failed to delete temp file %s", p)
 
 
 # --------------------------------------------------
@@ -538,6 +540,7 @@ def preview():
 # Run
 # --------------------------------------------------
 if __name__ == "__main__":
+    host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 5050))
     debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    app.run(host=host, port=port, debug=debug)
