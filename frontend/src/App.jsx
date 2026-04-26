@@ -90,19 +90,13 @@ const SAMPLE_ECGS = [
 
 /* ───────── Preprocessing pipeline stages ───────── */
 const STAGE_ORDER = ["raw", "baseline_removed", "sig_100hz", "sig_500hz"];
-const STAGE_ICONS = {
-  raw:              "⚡",
-  baseline_removed: "🔧",
-  sig_100hz:        "📉",
-  sig_500hz:        "🎨",
-};
 
 /* ───────── Chagas disease stats ───────── */
 const CHAGAS_STATS = [
-  { value: "6–7M",  label: "People Infected",        icon: "🌍", color: "brand" },
-  { value: "30%",   label: "Develop Cardiac Form",   icon: "❤️", color: "teal" },
-  { value: "70+",   label: "Countries Affected",     icon: "🗺️", color: "purple" },
-  { value: ">$7B",  label: "Annual Economic Burden",  icon: "💊", color: "orange" },
+  { value: "6–7M",  label: "People Infected",       color: "brand" },
+  { value: "30%",   label: "Develop Cardiac Form",  color: "teal" },
+  { value: "70+",   label: "Countries Affected",    color: "purple" },
+  { value: ">$7B",  label: "Annual Economic Burden", color: "orange" },
 ];
 
 /* ═══════════════════════════════════════════════════
@@ -246,7 +240,6 @@ function StageCard({ stageKey, data, isLast }) {
       {!isLast && <div className="stage-connector h-6 my-1" />}
       <div className="card shadow-card overflow-hidden">
         <div className="flex items-center gap-3 p-4 border-b border-surface-100">
-          <span className="text-2xl flex-shrink-0">{STAGE_ICONS[stageKey]}</span>
           <div className="flex-1 min-w-0">
             <div className="text-fluid-sm font-bold text-slate-800">{label}</div>
             <div className="text-fluid-xs text-slate-600 mt-0.5 leading-snug">{description}</div>
@@ -800,7 +793,7 @@ export default function App() {
                       <span className={`rounded-full px-3 py-1 text-fluid-xs font-bold tracking-wide shadow-sm
                         ${isPositive ? "bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-glow-red"
                           : "bg-gradient-to-r from-emerald-500 to-teal-400 text-white shadow-glow-green"}`}>
-                        {isPositive ? "⚠ POSITIVE" : "✓ NEGATIVE"}
+                        {isPositive ? "POSITIVE" : "NEGATIVE"}
                       </span>
                     </div>
                     <div className="flex flex-col items-center py-2">
@@ -1082,7 +1075,6 @@ export default function App() {
                     return (
                       <div key={key} className="flex items-center gap-2">
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-surface-200 shadow-sm">
-                          <span className="text-base">{STAGE_ICONS[key]}</span>
                           <span className="text-fluid-xs font-bold text-slate-700">{s?.label ?? key}</span>
                         </div>
                         {i < STAGE_ORDER.length - 1 && (
@@ -1098,7 +1090,6 @@ export default function App() {
                       <path d="M9 18l6-6-6-6" />
                     </svg>
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-brand">
-                      <span className="text-base">🧠</span>
                       <span className="text-fluid-xs font-bold">ViT Model</span>
                     </div>
                   </div>
@@ -1114,7 +1105,6 @@ export default function App() {
                   <div className="stage-connector h-6 my-1" />
                   <div className="card shadow-card overflow-hidden">
                     <div className="flex items-center gap-3 p-4 border-b border-surface-100">
-                      <span className="text-2xl">🖼️</span>
                       <div className="flex-1">
                         <div className="text-fluid-sm font-bold text-slate-800">2D Contour Image — ViT Input</div>
                         <div className="text-fluid-xs text-slate-600 mt-0.5">
@@ -1190,8 +1180,8 @@ export default function App() {
 
             {/* Chagas Disease */}
             <div className="card shadow-card p-6">
-              <h3 className="text-fluid-xl font-extrabold text-slate-800 mb-2 flex items-center gap-2">
-                <span className="text-2xl">🦠</span> What is Chagas Disease?
+              <h3 className="text-fluid-xl font-extrabold text-slate-800 mb-2">
+                What is Chagas Disease?
               </h3>
               <p className="text-fluid-sm text-slate-700 mb-5 leading-relaxed">
                 Chagas disease (American trypanosomiasis) is a chronic, life-threatening illness caused by the
@@ -1206,7 +1196,6 @@ export default function App() {
                       s.color === "teal" ? "bg-pastel-mint border border-teal-100" :
                       s.color === "purple" ? "bg-pastel-lilac border border-purple-100" :
                       "bg-pastel-peach border border-orange-100"}`}>
-                    <div className="text-2xl mb-1">{s.icon}</div>
                     <div className={`text-fluid-2xl font-extrabold
                       ${s.color === "brand" ? "text-brand-700" : s.color === "teal" ? "text-medical-teal" : s.color === "purple" ? "text-purple-700" : "text-orange-600"}`}>
                       {s.value}
