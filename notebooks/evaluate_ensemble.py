@@ -78,28 +78,28 @@ def main():
     # CONFIGURATION
     # =========================================================================
     INFERENCE_BATCH = 32      # 32 for 6 GB GPU; try 64 for >=8 GB
-    NUM_WORKERS     = 2 if platform.system() == "Windows" else 4
-    SAVE_EVERY_N    = 50      # crash-recovery checkpoint every N batches
-    N_PERMS_FINAL   = 10000   # official TPR@5% permutations (final)
-    N_PERMS_FOLD    = 5000    # permutations for per-fold / per-dataset
-    N_BOOTSTRAP     = 1000    # bootstrap resamples for 95% CI
-    SEED            = 12345
+    NUM_WORKERS = 2 if platform.system() == "Windows" else 4
+    SAVE_EVERY_N = 50      # crash-recovery checkpoint every N batches
+    N_PERMS_FINAL = 10000   # official TPR@5% permutations (final)
+    N_PERMS_FOLD = 5000    # permutations for per-fold / per-dataset
+    N_BOOTSTRAP = 1000    # bootstrap resamples for 95% CI
+    SEED = 12345
 
-    CHECKPOINT_DIR  = project_root / "checkpoints"
-    DATA_DIR        = project_root / "data" / "processed"
-    METADATA_CSV    = DATA_DIR / "metadata" / "combined_5fold.csv"
-    IMAGES_DIR      = DATA_DIR / "2d_images"
-    SIGNALS_DIR     = DATA_DIR / "1d_signals_100hz"
-    FIGURES_DIR     = CHECKPOINT_DIR / "thesis_figures"
-    EVAL_CKPT_DIR   = CHECKPOINT_DIR / "evaluation_checkpoints"
+    CHECKPOINT_DIR = project_root / "checkpoints"
+    DATA_DIR = project_root / "data" / "processed"
+    METADATA_CSV = DATA_DIR / "metadata" / "combined_5fold.csv"
+    IMAGES_DIR = DATA_DIR / "2d_images"
+    SIGNALS_DIR = DATA_DIR / "1d_signals_100hz"
+    FIGURES_DIR = CHECKPOINT_DIR / "thesis_figures"
+    EVAL_CKPT_DIR = CHECKPOINT_DIR / "evaluation_checkpoints"
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     EVAL_CKPT_DIR.mkdir(exist_ok=True)
 
     BENCHMARKS = [
-        ("Random baseline",                       0.050),
-        ("Kim et al. 2025 (2D-only approach)",     0.369),
-        ("Van Santvliet 2025 top team (val set)",  0.445),
-        ("Van Santvliet 2025 CV mean",             0.490),
+        ("Random baseline", 0.050),
+        ("Kim et al. 2025 (2D-only approach)", 0.369),
+        ("Van Santvliet 2025 top team (val set)", 0.445),
+        ("Van Santvliet 2025 CV mean", 0.490),
     ]
 
     # Auto-detect available fold checkpoints
@@ -167,7 +167,7 @@ def main():
     total_start = time.time()
 
     for fold_idx, _ in zip(available_folds, fold_ckpts):
-        fold_done    = EVAL_CKPT_DIR / f"fold{fold_idx}_complete.npz"
+        fold_done = EVAL_CKPT_DIR / f"fold{fold_idx}_complete.npz"
         fold_partial = EVAL_CKPT_DIR / f"fold{fold_idx}_partial.npz"
 
         # ── Load from cache if already finished ───────────────────────────────
@@ -195,23 +195,23 @@ def main():
             augment_train=False,
         )
         val_dataset = val_loader_full.dataset
-        n_total     = len(val_dataset)
+        n_total = len(val_dataset)
         n_total_batches = -(-n_total // INFERENCE_BATCH)   # ceil
 
         # ── Resume from partial checkpoint ────────────────────────────────────
         fp, fl, fi, fd = [], [], [], []
         start_sample = 0
-        start_batch  = 0
+        start_batch = 0
 
         if fold_partial.exists():
             d = np.load(fold_partial, allow_pickle=True)
-            fp           = d["probs"].tolist()
-            fl           = d["labels"].tolist()
-            fi           = d["ids"].tolist()
-            fd           = d["datasets"].tolist()
-            last_batch   = int(d["last_batch"])
+            fp = d["probs"].tolist()
+            fl = d["labels"].tolist()
+            fi = d["ids"].tolist()
+            fd = d["datasets"].tolist()
+            last_batch = int(d["last_batch"])
             start_sample = (last_batch + 1) * INFERENCE_BATCH
-            start_batch  = last_batch + 1
+            start_batch = last_batch + 1
             print(f"  Resuming from sample {start_sample:,}  "
                   f"(batch {start_batch}, {len(fp):,} results already saved)")
 
@@ -237,11 +237,11 @@ def main():
             for bi_rel, batch in enumerate(pbar):
                 bi = start_batch + bi_rel
 
-                imgs  = batch["image"].to(device, non_blocking=True)
-                sigs  = batch["signal"].to(device, non_blocking=True)
-                ages  = batch["age"].to(device, non_blocking=True)
+                imgs = batch["image"].to(device, non_blocking=True)
+                sigs = batch["signal"].to(device, non_blocking=True)
+                ages = batch["age"].to(device, non_blocking=True)
                 sexes = batch["sex"].to(device, non_blocking=True)
-                hlab  = batch["hard_label"].numpy()   # binary {0,1}
+                hlab = batch["hard_label"].numpy()   # binary {0,1}
 
                 preds = []
                 with torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
@@ -258,13 +258,13 @@ def main():
 
                 if (bi + 1) % SAVE_EVERY_N == 0:
                     np.savez(fold_partial,
-                             probs=np.array(fp,  dtype=np.float32),
+                             probs=np.array(fp, dtype=np.float32),
                              labels=np.array(fl, dtype=np.float32),
                              ids=fi, datasets=fd, last_batch=bi)
 
         # ── Save completed fold ───────────────────────────────────────────────
-        fold_probs  = np.array(fp,  dtype=np.float32)
-        fold_labels = np.array(fl,  dtype=np.float32)
+        fold_probs = np.array(fp, dtype=np.float32)
+        fold_labels = np.array(fl, dtype=np.float32)
         np.savez(fold_done, probs=fold_probs, labels=fold_labels, ids=fi, datasets=fd)
         if fold_partial.exists():
             fold_partial.unlink()
@@ -315,11 +315,11 @@ def main():
                 time.sleep(cool_secs)
                 torch.cuda.empty_cache()  # second cleanup after cooldown
 
-    all_probs     = np.array(all_probs,      dtype=np.float64)
-    all_labels    = np.array(all_labels,     dtype=np.float64)
+    all_probs = np.array(all_probs, dtype=np.float64)
+    all_labels = np.array(all_labels, dtype=np.float64)
     all_folds_arr = np.array(all_folds_list, dtype=np.int32)
 
-    assert not np.any(np.isnan(all_probs)),  "NaN in predictions"
+    assert not np.any(np.isnan(all_probs)), "NaN in predictions"
     assert not np.any(np.isnan(all_labels)), "NaN in labels"
     assert set(np.unique(all_labels)) <= {0.0, 1.0}, "Labels not binary {0,1}"
 
@@ -340,14 +340,15 @@ def main():
             fraction_capacity=0.05, num_permutations=N_PERMS_FINAL, seed=SEED,
         ))
         auroc_v, auprc_v = _compute_auc(all_labels, all_probs)
-        auroc = float(auroc_v); auprc = float(auprc_v)
+        auroc = float(auroc_v)
+        auprc = float(auprc_v)
         method_tag = f"OFFICIAL ({N_PERMS_FINAL:,} perms)"
     else:
         fpr_, tpr_, _ = roc_curve(all_labels, all_probs)
-        idx5     = np.where(fpr_ <= 0.05)[0]
+        idx5 = np.where(fpr_ <= 0.05)[0]
         tpr_5pct = float(tpr_[idx5[-1]]) if len(idx5) > 0 else 0.0
-        auroc    = float(roc_auc_score(all_labels, all_probs))
-        auprc    = float(average_precision_score(all_labels, all_probs))
+        auroc = float(roc_auc_score(all_labels, all_probs))
+        auprc = float(average_precision_score(all_labels, all_probs))
         method_tag = "sklearn approx"
 
     print("=" * 65)
@@ -360,16 +361,16 @@ def main():
 
     print("\nBenchmark comparison:")
     for name, val in BENCHMARKS:
-        diff  = tpr_5pct - val
+        diff = tpr_5pct - val
         arrow = "^" if diff >= 0 else "v"
         print(f"  {arrow} {abs(diff):.4f}  vs  {name:<44} ({val:.3f})")
 
-    N_total  = len(all_labels)
-    n_pos    = int(all_labels.sum())
+    N_total = len(all_labels)
+    n_pos = int(all_labels.sum())
     capacity = int(0.05 * N_total)
-    found    = int(round(tpr_5pct * n_pos))
-    rand_f   = max(1, int(round(0.05 * n_pos)))
-    nns      = round(capacity / found, 1) if found > 0 else float("inf")
+    found = int(round(tpr_5pct * n_pos))
+    rand_f = max(1, int(round(0.05 * n_pos)))
+    nns = round(capacity / found, 1) if found > 0 else float("inf")
 
     print(f"\nClinical interpretation:")
     print(f"  Total patients          : {N_total:,}")
@@ -382,7 +383,7 @@ def main():
     # THRESHOLD ANALYSIS
     # =========================================================================
     fpr_arr, tpr_arr, roc_thr = roc_curve(all_labels, all_probs)
-    prec_arr, rec_arr, pr_thr  = precision_recall_curve(all_labels, all_probs)
+    prec_arr, rec_arr, pr_thr = precision_recall_curve(all_labels, all_probs)
 
     thr_youden = float(roc_thr[np.argmax(tpr_arr - fpr_arr)])
     f1_arr = 2*prec_arr[:-1]*rec_arr[:-1] / (prec_arr[:-1]+rec_arr[:-1]+1e-9)
@@ -393,26 +394,26 @@ def main():
         pred = (all_probs >= thr).astype(int)
         tn, fp_c, fn, tp = confusion_matrix(all_labels, pred).ravel()
         spec = tn/(tn+fp_c) if (tn+fp_c) > 0 else 0.0
-        npv  = tn/(tn+fn)   if (tn+fn)   > 0 else 0.0
+        npv = tn/(tn+fn) if (tn+fn) > 0 else 0.0
         results_thr[name] = dict(
-            threshold   = round(thr, 4),
+            threshold=round(thr, 4),
             TP=int(tp), TN=int(tn), FP=int(fp_c), FN=int(fn),
-            sensitivity = round(float(recall_score(all_labels, pred)), 4),
-            specificity = round(spec, 4),
-            precision   = round(float(precision_score(all_labels, pred, zero_division=0)), 4),
-            npv         = round(npv, 4),
-            f1          = round(float(f1_score(all_labels, pred, zero_division=0)), 4),
-            mcc         = round(float(matthews_corrcoef(all_labels, pred)), 4),
-            accuracy    = round(float(accuracy_score(all_labels, pred)), 4),
+            sensitivity=round(float(recall_score(all_labels, pred)), 4),
+            specificity=round(spec, 4),
+            precision=round(float(precision_score(all_labels, pred, zero_division=0)), 4),
+            npv=round(npv, 4),
+            f1=round(float(f1_score(all_labels, pred, zero_division=0)), 4),
+            mcc=round(float(matthews_corrcoef(all_labels, pred)), 4),
+            accuracy=round(float(accuracy_score(all_labels, pred)), 4),
         )
 
     df_thr = pd.DataFrame(results_thr).T
-    cols   = ["threshold","sensitivity","specificity","precision",
-              "npv","f1","mcc","accuracy"]
+    cols = ["threshold","sensitivity","specificity","precision",
+            "npv","f1","mcc","accuracy"]
     print("\nThreshold analysis:")
     print(df_thr[cols].to_string())
 
-    primary     = results_thr["youden_j"]
+    primary = results_thr["youden_j"]
     pred_binary = (all_probs >= primary["threshold"]).astype(int)
     print(f"\nPrimary (Youden J, thr={primary['threshold']}):")
     for k in ["sensitivity","specificity","precision","npv","f1","mcc","accuracy"]:
@@ -443,8 +444,8 @@ def main():
         return float(np.percentile(a, 2.5)), float(np.percentile(a, 97.5))
 
     tpr_lo_raw, tpr_hi_raw = ci95(bt_tpr)
-    auroc_lo, auroc_hi     = ci95(bt_auroc)
-    auprc_lo, auprc_hi     = ci95(bt_auprc)
+    auroc_lo, auroc_hi = ci95(bt_auroc)
+    auprc_lo, auprc_hi = ci95(bt_auprc)
 
     # The bootstrap loop uses sklearn's roc_curve approximation which is
     # systematically ~3-4 pp above the official permutation metric.
@@ -483,8 +484,8 @@ def main():
                 ds_auroc, ds_auprc = _compute_auc(dl, dp)
             else:
                 fpr_d, tpr_d, _ = roc_curve(dl, dp)
-                i5d      = np.where(fpr_d <= 0.05)[0]
-                ds_tpr   = float(tpr_d[i5d[-1]]) if len(i5d) > 0 else 0.0
+                i5d = np.where(fpr_d <= 0.05)[0]
+                ds_tpr = float(tpr_d[i5d[-1]]) if len(i5d) > 0 else 0.0
                 ds_auroc = float(roc_auc_score(dl, dp))
                 ds_auprc = float(average_precision_score(dl, dp))
             row.update(tpr_5pct=round(ds_tpr, 4),
@@ -519,8 +520,8 @@ def main():
             else:
                 fpr_f, tpr_f, _ = roc_curve(fl, fp2)
                 i5f = np.where(fpr_f <= 0.05)[0]
-                ft  = float(tpr_f[i5f[-1]]) if len(i5f) > 0 else 0.0
-                fa  = float(roc_auc_score(fl, fp2))
+                ft = float(tpr_f[i5f[-1]]) if len(i5f) > 0 else 0.0
+                fa = float(roc_auc_score(fl, fp2))
                 fp3 = float(average_precision_score(fl, fp2))
             row.update(tpr_5pct=round(ft, 4), auroc=round(fa, 4), auprc=round(fp3, 4))
         fold_rows.append(row)
@@ -562,10 +563,14 @@ def main():
     ax.plot(fpr_arr[i5], tpr_arr[i5], "ro", ms=10, zorder=5,
             label=f"5% FPR  TPR={tpr_arr[i5]:.3f}")
     ax.axvline(0.05, color="grey", ls=":", lw=1, alpha=0.6)
-    ax.set_xlabel("False Positive Rate"); ax.set_ylabel("True Positive Rate")
-    ax.set_title("Figure 4.1 -- ROC Curve"); ax.legend(loc="lower right", fontsize=9)
-    ax.set_xlim(-0.02,1.02); ax.set_ylim(-0.02,1.02)
-    plt.tight_layout(); save_fig("fig4_1_roc_curve.png")
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
+    ax.set_title("Figure 4.1 -- ROC Curve")
+    ax.legend(loc="lower right", fontsize=9)
+    ax.set_xlim(-0.02, 1.02)
+    ax.set_ylim(-0.02, 1.02)
+    plt.tight_layout()
+    save_fig("fig4_1_roc_curve.png")
 
     # Fig 4.2 -- Precision-Recall
     fig, ax = plt.subplots(figsize=(7, 6))
@@ -574,10 +579,14 @@ def main():
     baseline_prec = all_labels.mean()
     ax.axhline(baseline_prec, color="k", ls="--", lw=1.2, alpha=0.5,
                label=f"Random ({baseline_prec:.3f})")
-    ax.set_xlabel("Recall"); ax.set_ylabel("Precision")
-    ax.set_title("Figure 4.2 -- Precision-Recall Curve"); ax.legend(loc="upper right", fontsize=9)
-    ax.set_xlim(-0.02,1.02); ax.set_ylim(-0.02,1.02)
-    plt.tight_layout(); save_fig("fig4_2_pr_curve.png")
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_title("Figure 4.2 -- Precision-Recall Curve")
+    ax.legend(loc="upper right", fontsize=9)
+    ax.set_xlim(-0.02, 1.02)
+    ax.set_ylim(-0.02, 1.02)
+    plt.tight_layout()
+    save_fig("fig4_2_pr_curve.png")
 
     # Fig 4.3 -- Confusion Matrix
     cm = confusion_matrix(all_labels, pred_binary)
@@ -592,19 +601,23 @@ def main():
             ax.text(ci+0.5, ri+0.72, f"({100*cm[ri,ci]/total_cm:.1f}%)",
                     ha="center", va="center", fontsize=10, color="dimgrey")
     ax.set_title(f"Figure 4.3 -- Confusion Matrix  (thr={primary['threshold']:.4f}, Youden J)")
-    plt.tight_layout(); save_fig("fig4_3_confusion_matrix.png")
+    plt.tight_layout()
+    save_fig("fig4_3_confusion_matrix.png")
 
     # Fig 4.4 -- Probability Histogram
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.hist(all_probs[all_labels==0], bins=60, alpha=0.6, density=True,
             color="steelblue", label=f"Negative  n={int((all_labels==0).sum()):,}")
     ax.hist(all_probs[all_labels==1], bins=60, alpha=0.6, density=True,
-            color="crimson",  label=f"Positive  n={int(all_labels.sum()):,}")
+            color="crimson", label=f"Positive  n={int(all_labels.sum()):,}")
     ax.axvline(primary["threshold"], color="k", ls="--", lw=1.5,
                label=f"Threshold {primary['threshold']:.3f}")
-    ax.set_xlabel("Predicted Probability"); ax.set_ylabel("Density")
+    ax.set_xlabel("Predicted Probability")
+    ax.set_ylabel("Density")
     ax.set_title("Figure 4.4 -- Predicted Probability Distribution by True Class")
-    ax.legend(); plt.tight_layout(); save_fig("fig4_4_prob_histogram.png")
+    ax.legend()
+    plt.tight_layout()
+    save_fig("fig4_4_prob_histogram.png")
 
     # Fig 4.5 -- Calibration
     n_bins, bin_edges = 10, np.linspace(0, 1, 11)
@@ -618,17 +631,21 @@ def main():
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.plot([0,1],[0,1],"k--",lw=1.2,alpha=0.5,label="Perfect calibration")
     ax.plot(bc, bt, "o-", lw=2, ms=7, color="#F18F01", label="Ensemble")
-    ax.set_xlabel("Mean Predicted Probability"); ax.set_ylabel("Fraction of Positives")
-    ax.set_title("Figure 4.5 -- Calibration Curve"); ax.legend()
-    ax.set_xlim(-0.02,1.02); ax.set_ylim(-0.02,1.02)
-    plt.tight_layout(); save_fig("fig4_5_calibration.png")
+    ax.set_xlabel("Mean Predicted Probability")
+    ax.set_ylabel("Fraction of Positives")
+    ax.set_title("Figure 4.5 -- Calibration Curve")
+    ax.legend()
+    ax.set_xlim(-0.02, 1.02)
+    ax.set_ylim(-0.02, 1.02)
+    plt.tight_layout()
+    save_fig("fig4_5_calibration.png")
 
     # Fig 4.6 -- Per-fold bar chart
     numeric_rows = [(r["fold"], r["tpr_5pct"])
                     for r in fold_rows if isinstance(r["tpr_5pct"], float)]
     if numeric_rows:
         labels_bar = [str(f) for f, _ in numeric_rows]
-        vals_bar   = [v for _, v in numeric_rows]
+        vals_bar = [v for _, v in numeric_rows]
         colors_bar = ["#2E86AB"]*(len(labels_bar)-1) + ["#E84855"]
         fig, ax = plt.subplots(figsize=(8, 5))
         bars = ax.bar(labels_bar, vals_bar, color=colors_bar,
@@ -636,9 +653,11 @@ def main():
         for bar, val in zip(bars, vals_bar):
             ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.005,
                     f"{val:.4f}", ha="center", va="bottom", fontsize=9)
-        ax.set_xlabel("Fold / Ensemble"); ax.set_ylabel("TPR @ 5% FPR")
+        ax.set_xlabel("Fold / Ensemble")
+        ax.set_ylabel("TPR @ 5% FPR")
         ax.set_title("Figure 4.6 -- Per-Fold and Ensemble TPR @ 5% FPR")
-        plt.tight_layout(); save_fig("fig4_6_per_fold_bar.png")
+        plt.tight_layout()
+        save_fig("fig4_6_per_fold_bar.png")
 
     # Fig 4.7 -- Per-fold AUROC & AUPRC grouped bar chart
     auroc_rows = [(r["fold"], r["auroc"], r["auprc"])
@@ -646,11 +665,11 @@ def main():
                   if isinstance(r["auroc"], float) and isinstance(r["auprc"], float)]
     if auroc_rows:
         fold_labels = [str(f) for f, _, _ in auroc_rows]
-        auroc_vals  = [a for _, a, _ in auroc_rows]
-        auprc_vals  = [p for _, _, p in auroc_rows]
+        auroc_vals = [a for _, a, _ in auroc_rows]
+        auprc_vals = [p for _, _, p in auroc_rows]
 
-        x      = np.arange(len(fold_labels))
-        width  = 0.35
+        x = np.arange(len(fold_labels))
+        width = 0.35
         fig, ax = plt.subplots(figsize=(9, 5))
         b1 = ax.bar(x - width/2, auroc_vals, width, label="AUROC",
                     color="#2E86AB", edgecolor="white", linewidth=0.5)
@@ -662,12 +681,15 @@ def main():
         for bar, val in zip(b2, auprc_vals):
             ax.text(bar.get_x()+bar.get_width()/2, bar.get_height()+0.003,
                     f"{val:.4f}", ha="center", va="bottom", fontsize=8)
-        ax.set_xticks(x); ax.set_xticklabels(fold_labels)
-        ax.set_xlabel("Fold / Ensemble"); ax.set_ylabel("Score")
+        ax.set_xticks(x)
+        ax.set_xticklabels(fold_labels)
+        ax.set_xlabel("Fold / Ensemble")
+        ax.set_ylabel("Score")
         ax.set_ylim(0, 1.05)
         ax.set_title("Figure 4.7 -- Per-Fold AUROC and AUPRC")
         ax.legend()
-        plt.tight_layout(); save_fig("fig4_7_auroc_auprc_bar.png")
+        plt.tight_layout()
+        save_fig("fig4_7_auroc_auprc_bar.png")
 
     print("All figures saved.")
 
@@ -675,28 +697,28 @@ def main():
     # SAVE RESULTS + PACKAGE FINAL_ENSEMBLE_MODEL.pt
     # =========================================================================
     summary = {
-        "TPR @ 5% FPR (primary)":  f"{tpr_5pct:.4f}  [{tpr_lo:.4f}-{tpr_hi:.4f}]",
-        "AUROC":                    f"{auroc:.4f}  [{auroc_lo:.4f}-{auroc_hi:.4f}]",
-        "AUPRC":                    f"{auprc:.4f}  [{auprc_lo:.4f}-{auprc_hi:.4f}]",
-        "Sensitivity (recall)":     f"{primary['sensitivity']:.4f}",
-        "Specificity":              f"{primary['specificity']:.4f}",
-        "Precision (PPV)":          f"{primary['precision']:.4f}",
-        "NPV":                      f"{primary['npv']:.4f}",
-        "F1 Score":                 f"{primary['f1']:.4f}",
-        "MCC":                      f"{primary['mcc']:.4f}",
-        "Accuracy":                 f"{primary['accuracy']:.4f}",
-        "Optimal threshold":        f"{primary['threshold']:.4f}  (Youden J)",
-        "TP / TN / FP / FN":       (f"{primary['TP']} / {primary['TN']:,} / "
-                                    f"{primary['FP']:,} / {primary['FN']}"),
-        "Number Needed to Screen":  str(nns),
-        "Total samples":            f"{len(all_labels):,}",
-        "Positive samples":         f"{int(all_labels.sum()):,}  ({100*all_labels.mean():.2f}%)",
-        "Ensemble models":          f"{len(models)} ({len(available_folds)}-fold CV)",
-        "Params per model":         f"{total_params:,}",
-        "Bootstrap CI resamples":   f"{N_BOOTSTRAP}",
-        "Inference batch size":     f"{INFERENCE_BATCH}",
-        "Primary metric method":    "OFFICIAL PhysioNet" if OFFICIAL else "sklearn approx",
-        "Folds used":               str(available_folds),
+        "TPR @ 5% FPR (primary)": f"{tpr_5pct:.4f}  [{tpr_lo:.4f}-{tpr_hi:.4f}]",
+        "AUROC": f"{auroc:.4f}  [{auroc_lo:.4f}-{auroc_hi:.4f}]",
+        "AUPRC": f"{auprc:.4f}  [{auprc_lo:.4f}-{auprc_hi:.4f}]",
+        "Sensitivity (recall)": f"{primary['sensitivity']:.4f}",
+        "Specificity": f"{primary['specificity']:.4f}",
+        "Precision (PPV)": f"{primary['precision']:.4f}",
+        "NPV": f"{primary['npv']:.4f}",
+        "F1 Score": f"{primary['f1']:.4f}",
+        "MCC": f"{primary['mcc']:.4f}",
+        "Accuracy": f"{primary['accuracy']:.4f}",
+        "Optimal threshold": f"{primary['threshold']:.4f}  (Youden J)",
+        "TP / TN / FP / FN": (f"{primary['TP']} / {primary['TN']:,} / "
+                               f"{primary['FP']:,} / {primary['FN']}"),
+        "Number Needed to Screen": str(nns),
+        "Total samples": f"{len(all_labels):,}",
+        "Positive samples": f"{int(all_labels.sum()):,}  ({100*all_labels.mean():.2f}%)",
+        "Ensemble models": f"{len(models)} ({len(available_folds)}-fold CV)",
+        "Params per model": f"{total_params:,}",
+        "Bootstrap CI resamples": f"{N_BOOTSTRAP}",
+        "Inference batch size": f"{INFERENCE_BATCH}",
+        "Primary metric method": "OFFICIAL PhysioNet" if OFFICIAL else "sklearn approx",
+        "Folds used": str(available_folds),
     }
     df_summary = pd.DataFrame.from_dict(summary, orient="index", columns=["Value"])
     df_summary.index.name = "Metric"
@@ -725,28 +747,28 @@ def main():
     # Package FINAL_ENSEMBLE_MODEL.pt
     print("\nPackaging FINAL_ENSEMBLE_MODEL.pt ...")
     pkg = {
-        "model_config":     MODEL_CFG,
+        "model_config": MODEL_CFG,
         "ensemble_metrics": {
-            "tpr_5pct":   tpr_5pct,   "auroc":    auroc,   "auprc":    auprc,
-            "tpr_ci":     (tpr_lo,    tpr_hi),
-            "auroc_ci":   (auroc_lo,  auroc_hi),
-            "auprc_ci":   (auprc_lo,  auprc_hi),
-            "threshold":  primary["threshold"],
-            "n_total":    len(all_labels),
+            "tpr_5pct": tpr_5pct, "auroc": auroc, "auprc": auprc,
+            "tpr_ci": (tpr_lo, tpr_hi),
+            "auroc_ci": (auroc_lo, auroc_hi),
+            "auprc_ci": (auprc_lo, auprc_hi),
+            "threshold": primary["threshold"],
+            "n_total": len(all_labels),
             "n_positive": int(all_labels.sum()),
-            "official":   OFFICIAL,
+            "official": OFFICIAL,
         },
         "fold_val_scores": fold_val_scores,
         "available_folds": available_folds,
-        "fold_models":     [],
+        "fold_models": [],
     }
     for fold_idx, ckpt_path in zip(available_folds, fold_ckpts):
         c = torch.load(ckpt_path, map_location="cpu", weights_only=False)
         pkg["fold_models"].append({
-            "fold":             fold_idx,
+            "fold": fold_idx,
             "model_state_dict": c["model_state_dict"],
-            "val_score":        c.get("val_score", None),
-            "phase":            c.get("phase", "unknown"),
+            "val_score": c.get("val_score", None),
+            "phase": c.get("phase", "unknown"),
         })
 
     out_path = CHECKPOINT_DIR / "FINAL_ENSEMBLE_MODEL.pt"
