@@ -1,2 +1,2 @@
-tpr_5pct,auroc,auprc,using_official,num_permutations,n_pos,n_total,fold,phase2_iters,phase2_eff_batch
-0.43760463980463976,0.8503098316817781,0.21630485784831266,True,10000,1638,73237,0,24000,32
+auroc,auprc,using_official,num_permutations,n_pos,n_total,fold,phase2_iters,phase2_eff_batch,tpr_5pct
+0.8503098316817781,0.21630485784831266,True,10000,1638,73237,0,24000,32, 0.43760463980463976
