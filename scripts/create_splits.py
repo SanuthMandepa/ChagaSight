@@ -23,7 +23,7 @@ def main():
 
     df = pd.read_csv(args.metadata_csv)
     
-    print(f"✓ Loaded {len(df)} samples from {args.metadata_csv}")
+    print(f"OK Loaded {len(df)} samples from {args.metadata_csv}")
     print(f"  Datasets: {df['dataset'].value_counts().to_dict()}")
     print(f"  Positives: {df['label_hard'].sum()}")
     
@@ -55,11 +55,11 @@ def main():
     # CORRECTED: Save combined_5fold.csv to metadata/ directory
     combined_csv_path = metadata_dir / "combined_5fold.csv"
     df.to_csv(combined_csv_path, index=False)
-    print(f"\n✓ Saved combined CSV: {combined_csv_path}")
+    print(f"\nOK Saved combined CSV: {combined_csv_path}")
 
     # Also save to splits/ for backwards compatibility
     df.to_csv(splits_dir / "all_data_with_folds.csv", index=False)
-    print(f"✓ Saved (backup): {splits_dir / 'all_data_with_folds.csv'}")
+    print(f"OK Saved (backup): {splits_dir / 'all_data_with_folds.csv'}")
 
     # Create per-fold train/val CSVs
     for fold in range(args.n_splits):
@@ -71,11 +71,11 @@ def main():
         
         print(f"  Fold {fold}: train={len(train_df)}, val={len(val_df)}")
 
-    print(f"\n✓ Splits written to: {splits_dir}")
-    print(f"✓ Combined CSV at: {combined_csv_path}")
+    print(f"\nOK Splits written to: {splits_dir}")
+    print(f"OK Combined CSV at: {combined_csv_path}")
     
     # Print fold distribution
-    print("\n📊 Fold distribution:")
+    print("\n Fold distribution:")
     for fold in range(args.n_splits):
         fold_data = df[df['fold'] == fold]
         pos = fold_data['label_hard'].sum()

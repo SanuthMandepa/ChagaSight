@@ -38,13 +38,41 @@ files/*
 
 Final Diagrams/*
 thesis_figures_old/*
-thesis_figures/*
-tests/*
 thesis_figures_old_new/*
 Resources/*
 
 testAll/*
 
 old_notebooks/*
+notebooks/83k/*
 
 .claude/*
+
+# Old/duplicate training-run and checkpoint dumps (models are fetched from HF Hub at runtime)
+checkpoints12/*
+checkpoints_new/*
+Checkpoints/*
+models/*.pt
+models/*.pth
+
+thesis/*
+
+# Empty / stray dev folders
+/New folder/*
+/old files/*
+
+# Generated data artifacts that shouldn't live at repo root
+/dataset_split.csv
+/resolved_dataset_split.csv
+/resolved_dataset_split_with_age_filter.csv
+/age_outliers.csv
+
+# One-off/duplicate debug scripts
+/cell_17_source.py
+/cell_19_source.py
+/fix_checkpoint.py
+/fix_plots.py
+/tmp_gen.py
+/count_split_path_groups.py
+/delete_outlier_split_paths (1).py
+scripts/*copy*.py

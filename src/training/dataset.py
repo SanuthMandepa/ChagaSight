@@ -1,8 +1,9 @@
-# src/training/dataset.py - v2 (augmentation_config passthrough)
+# src/training/dataset.py - v3 (final split support)
 """
 ChagaSight Dataset with Soft Labels and Weighted Sampling
 
-FIXED: Custom collate function to handle string fields
+v3: supports both fold-based (combined_5fold.csv) and fixed split
+    (final_split.csv) metadata CSVs.  Auto-detected from columns.
 """
 
 import numpy as np
@@ -19,7 +20,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 try:
     from preprocessing.augmentations import apply_augmentations, DEFAULT_AUGMENTATION_CONFIG
 except ImportError:
-    print("⚠️  Warning: augmentations module not found. Augmentations disabled.")
+    print("!️  Warning: augmentations module not found. Augmentations disabled.")
     apply_augmentations = None
     DEFAULT_AUGMENTATION_CONFIG = None
 
@@ -65,12 +66,12 @@ class ChagasDataset(Dataset):
     ):
         """
         Args:
-            metadata_csv: Path to combined_5fold.csv
+            metadata_csv: Path to combined_5fold.csv OR final_split.csv
             images_dir: Path to data/processed/2d_images/
             signals_dir: Path to data/processed/1d_signals_100hz/
-            split: 'train' or 'val'
-            fold: Fold number (0-4)
-            augment: Apply augmentations
+            split: 'train', 'val', or 'test'
+            fold: Fold number (0-4) — used only with combined_5fold.csv
+            augment: Apply augmentations (automatically disabled for val/test)
             augmentation_config: Custom augmentation config
             use_soft_labels: Use soft labels for CODE-15%
         """
@@ -79,26 +80,40 @@ class ChagasDataset(Dataset):
         self.split = split
         self.augment = augment and (split == 'train') and (apply_augmentations is not None)
         self.use_soft_labels = use_soft_labels
-        
+
         if augmentation_config is None and DEFAULT_AUGMENTATION_CONFIG is not None:
             self.augmentation_config = DEFAULT_AUGMENTATION_CONFIG
         else:
             self.augmentation_config = augmentation_config
-        
+
         # Load metadata
-        df = pd.read_csv(metadata_csv)
-        
-        # Check for correct column names
-        required_cols = ['id', 'dataset', 'label_hard', 'label_soft', 'fold']
-        missing = [c for c in required_cols if c not in df.columns]
-        if missing:
-            raise ValueError(f"Missing columns in CSV: {missing}")
-        
-        # Filter by fold
-        if split == 'train':
-            self.df = df[df['fold'] != fold].reset_index(drop=True)
-        else:  # val
-            self.df = df[df['fold'] == fold].reset_index(drop=True)
+        df = pd.read_csv(metadata_csv, low_memory=False)
+
+        # ── Auto-detect split mode ────────────────────────────────────────────
+        if 'split' in df.columns:
+            # final_split.csv mode: 'split' column holds 'train'/'val'/'test'
+            required_cols = ['id', 'dataset', 'label_hard', 'label_soft', 'split']
+            missing = [c for c in required_cols if c not in df.columns]
+            if missing:
+                raise ValueError(f"Missing columns in CSV: {missing}")
+            if split not in {'train', 'val', 'test'}:
+                raise ValueError(f"split must be 'train', 'val', or 'test', got '{split}'")
+            self.df = df[df['split'] == split].reset_index(drop=True)
+        elif 'fold' in df.columns:
+            # combined_5fold.csv mode: filter by fold number
+            required_cols = ['id', 'dataset', 'label_hard', 'label_soft', 'fold']
+            missing = [c for c in required_cols if c not in df.columns]
+            if missing:
+                raise ValueError(f"Missing columns in CSV: {missing}")
+            if split == 'train':
+                self.df = df[df['fold'] != fold].reset_index(drop=True)
+            else:
+                self.df = df[df['fold'] == fold].reset_index(drop=True)
+        else:
+            raise ValueError(
+                "Metadata CSV must have either a 'split' column (final_split.csv) "
+                "or a 'fold' column (combined_5fold.csv)."
+            )
         
         # Count datasets
         dataset_counts = {}
@@ -107,7 +122,8 @@ class ChagasDataset(Dataset):
             if count > 0:
                 dataset_counts[ds] = count
         
-        print(f"✓ Loaded {split} fold {fold}: {len(self.df)} samples")
+        label = f"fold {fold}" if 'fold' in df.columns else "final split"
+        print(f"OK Loaded {split} ({label}): {len(self.df)} samples")
         print(f"  Datasets: {dataset_counts}")
         print(f"  Positive: {self.df['label_hard'].sum()}, "
               f"Negative: {len(self.df) - self.df['label_hard'].sum()}")
@@ -291,13 +307,117 @@ def create_dataloaders(
         collate_fn=custom_collate_fn  # FIXED: Handle strings
     )
     
-    print(f"\n✓ Created dataloaders for fold {fold}:")
+    print(f"\nOK Created dataloaders for fold {fold}:")
     print(f"  Train: {len(train_dataset)} samples, {len(train_loader)} batches")
     print(f"  Val:   {len(val_dataset)} samples, {len(val_loader)} batches")
     print(f"  Weighted sampling: {use_weighted_sampling}")
     print(f"  Augmentation: {augment_train}")
     
     return train_loader, val_loader
+
+
+def create_dataloaders_final_split(
+    metadata_csv: str,
+    images_dir: str,
+    signals_dir: str,
+    batch_size: int = 32,
+    num_workers: int = 4,
+    use_weighted_sampling: bool = True,
+    augment_train: bool = True,
+    augmentation_config: Optional[Dict] = None,
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    """
+    Create train / val / test dataloaders from final_split.csv.
+
+    Returns:
+        train_loader, val_loader, test_loader
+    """
+    train_dataset = ChagasDataset(
+        metadata_csv=metadata_csv,
+        images_dir=images_dir,
+        signals_dir=signals_dir,
+        split='train',
+        augment=augment_train,
+        augmentation_config=augmentation_config,
+        use_soft_labels=True,
+    )
+    val_dataset = ChagasDataset(
+        metadata_csv=metadata_csv,
+        images_dir=images_dir,
+        signals_dir=signals_dir,
+        split='val',
+        augment=False,
+        use_soft_labels=True,
+    )
+    test_dataset = ChagasDataset(
+        metadata_csv=metadata_csv,
+        images_dir=images_dir,
+        signals_dir=signals_dir,
+        split='test',
+        augment=False,
+        use_soft_labels=False,  # hard labels for final evaluation
+    )
+
+    if use_weighted_sampling:
+        sample_weights = train_dataset.get_sample_weights()
+        train_sampler = WeightedRandomSampler(
+            weights=sample_weights,
+            num_samples=len(train_dataset),
+            replacement=True,
+        )
+        shuffle_train = False
+    else:
+        train_sampler = None
+        shuffle_train = True
+
+    # persistent_workers=True keeps worker processes alive between epochs,
+    # preventing the Windows "worker exited unexpectedly" crash (spawn-based MP).
+    # prefetch_factor=2 (default) is kept; only active when num_workers > 0.
+    _pw = num_workers > 0   # persistent_workers requires at least 1 worker
+    _pf = 2 if num_workers > 0 else None  # prefetch_factor ignored with 0 workers
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        sampler=train_sampler,
+        shuffle=shuffle_train,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=True,
+        collate_fn=custom_collate_fn,
+        persistent_workers=_pw,
+        prefetch_factor=_pf,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False,
+        collate_fn=custom_collate_fn,
+        persistent_workers=_pw,
+        prefetch_factor=_pf,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False,
+        collate_fn=custom_collate_fn,
+        persistent_workers=_pw,
+        prefetch_factor=_pf,
+    )
+
+    print(f"\nOK Created dataloaders from final split:")
+    print(f"  Train: {len(train_dataset):,} samples, {len(train_loader):,} batches")
+    print(f"  Val:   {len(val_dataset):,} samples, {len(val_loader):,} batches")
+    print(f"  Test:  {len(test_dataset):,} samples, {len(test_loader):,} batches")
+    print(f"  Weighted sampling: {use_weighted_sampling}  |  Augmentation: {augment_train}")
+
+    return train_loader, val_loader, test_loader
 
 
 # Example usage
@@ -314,12 +434,12 @@ if __name__ == "__main__":
     
     # Test batch
     batch = next(iter(train_loader))
-    print(f"\n✓ Batch shapes:")
+    print(f"\nOK Batch shapes:")
     print(f"  image: {batch['image'].shape}")  # (8, 3, 24, 2048)
     print(f"  signal: {batch['signal'].shape}")  # (8, 12, 1000)
     print(f"  age: {batch['age'].shape}")  # (8,)
     print(f"  sex: {batch['sex'].shape}")  # (8,)
     print(f"  label: {batch['label'].shape}")  # (8,)
-    print(f"\n✓ String fields:")
+    print(f"\nOK String fields:")
     print(f"  dataset (first 3): {batch['dataset'][:3]}")  # List of strings
     print(f"  id (first 3): {batch['id'][:3]}")  # List of strings

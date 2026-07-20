@@ -1,8 +1,10 @@
-# scripts/build_all_data.py - ENHANCED VERSION
+# scripts/build_all_data.py - v2 (pad-before-filter fix)
 # Features:
 # - Dataset selection: --datasets ptbxl samitrop code15
 # - Smart CSV merging: skips reprocessing existing datasets
 # - Automatic metadata combination
+# - FIX: pad to target length BEFORE baseline filter so very short
+#   records (e.g. 26-sample code15 files) are no longer silently dropped
 
 from __future__ import annotations
 
@@ -91,6 +93,9 @@ def _depad_trailing_zeros(signal: np.ndarray) -> np.ndarray:
     return signal[:, : last + 1]
 
 
+_skip_log: List[str] = []   # collects skip reasons; printed at dataset end
+
+
 def process_single_record(
     record_path: Path,
     dataset: str,
@@ -114,17 +119,24 @@ def process_single_record(
         fs = float(record.fs)
 
         if signal.shape[0] != 12:
+            _skip_log.append(
+                f"SKIP {record_path.name}: expected 12 leads, got {signal.shape[0]}"
+            )
             return None
 
         if baseline_cfg is None:
             baseline_cfg = BaselineConfig(method="bandpass", lowcut_hz=0.5, highcut_hz=40.0, order=4)
-        signal = remove_baseline(signal, fs=fs, config=baseline_cfg)
 
+        # FIX: depad and pad to target length BEFORE baseline filter.
+        # Previously the filter ran first, crashing on signals shorter than
+        # the filter padlen (e.g. 26-sample code15 records at 400 Hz).
         if dataset in ("samitrop", "code15"):
             signal = _depad_trailing_zeros(signal)
 
         target_len_orig = int(round(10.0 * fs))
-        signal = pad_or_trim(signal, target_len_orig)
+        signal = pad_or_trim(signal, target_len_orig)   # guarantees enough samples for filter
+
+        signal = remove_baseline(signal, fs=fs, config=baseline_cfg)
 
         s500 = resample_signal(signal, original_fs=fs, target_fs=500.0)
         s500 = normalize_per_lead(s500, method="zscore", clip_std=3.0)
@@ -155,6 +167,7 @@ def process_single_record(
             "fm_path": str(sig_path),
         }
     except Exception as e:
+        _skip_log.append(f"SKIP {record_path.name}: {type(e).__name__}: {e}")
         return None
 
 
@@ -183,6 +196,7 @@ def process_ptbxl(ptbxl_dir: Path, out_2d: Path, out_1d: Path,
     rng = np.random.default_rng(42)
     out: List[Dict[str, Any]] = []
 
+    _skip_log.clear()
     for _, row in tqdm(df.iterrows(), total=len(df), desc="PTB-XL"):
         fn = str(row.get("filename_hr", "")).replace(".hea", "")
         record_path = ptbxl_dir / fn
@@ -210,6 +224,10 @@ def process_ptbxl(ptbxl_dir: Path, out_2d: Path, out_1d: Path,
         if md is not None:
             out.append(md)
 
+    if _skip_log:
+        print(f"\n  Skipped {len(_skip_log)} PTB-XL records:")
+        for msg in _skip_log:
+            print(f"    {msg}")
     return out
 
 
@@ -223,6 +241,7 @@ def process_samitrop(samitrop_dir: Path, out_2d: Path, out_1d: Path,
     rng = np.random.default_rng(123)
     out: List[Dict[str, Any]] = []
 
+    _skip_log.clear()
     for _, row in tqdm(df.iterrows(), total=len(df), desc="SaMi-Trop"):
         exam_id = str(row["exam_id"])
         record_path = samitrop_dir / "wfdb" / exam_id
@@ -252,6 +271,10 @@ def process_samitrop(samitrop_dir: Path, out_2d: Path, out_1d: Path,
         if md is not None:
             out.append(md)
 
+    if _skip_log:
+        print(f"\n  Skipped {len(_skip_log)} SaMi-Trop records:")
+        for msg in _skip_log:
+            print(f"    {msg}")
     return out
 
 
@@ -277,6 +300,7 @@ def process_code15(code15_dir: Path, out_2d: Path, out_1d: Path,
     rng = np.random.default_rng(999)
     out: List[Dict[str, Any]] = []
 
+    _skip_log.clear()
     for _, row in tqdm(merged.iterrows(), total=len(merged), desc="CODE-15"):
         exam_id = str(row["exam_id"])
         record_path = _resolve_code15_record_path(code15_dir, exam_id)
@@ -304,6 +328,12 @@ def process_code15(code15_dir: Path, out_2d: Path, out_1d: Path,
         if md is not None:
             out.append(md)
 
+    if _skip_log:
+        print(f"\n  Skipped {len(_skip_log)} CODE-15 records:")
+        for msg in _skip_log:
+            print(f"    {msg}")
+    else:
+        print("\n  No CODE-15 records skipped.")
     return out
 
 
@@ -323,7 +353,7 @@ def merge_metadata_csvs(meta_dir: Path, datasets_processed: List[str]) -> pd.Dat
             # Keep existing data for this dataset
             df = pd.read_csv(csv_path)
             all_parts.append(df)
-            print(f"  ✓ Loaded existing {ds}: {len(df)} samples")
+            print(f"  OK Loaded existing {ds}: {len(df)} samples")
     
     # Add newly processed datasets
     for ds in datasets_processed:
@@ -331,7 +361,7 @@ def merge_metadata_csvs(meta_dir: Path, datasets_processed: List[str]) -> pd.Dat
         if csv_path.exists():
             df = pd.read_csv(csv_path)
             all_parts.append(df)
-            print(f"  ✓ Loaded new {ds}: {len(df)} samples")
+            print(f"  OK Loaded new {ds}: {len(df)} samples")
     
     if not all_parts:
         return pd.DataFrame()
@@ -398,7 +428,7 @@ def main():
     if "ptbxl" in datasets_to_process:
         ptbxl_dir = official / "ptbxl"
         if ptbxl_dir.exists():
-            print("\n📊 Processing PTB-XL...")
+            print("\n Processing PTB-XL...")
             md = process_ptbxl(
                 ptbxl_dir,
                 out_2d / "ptbxl",
@@ -409,9 +439,9 @@ def main():
             )
             pd.DataFrame(md).to_csv(meta_dir / "ptbxl_metadata.csv", index=False)
             datasets_processed.append("ptbxl")
-            print(f"✓ PTB-XL complete: {len(md)} samples")
+            print(f"OK PTB-XL complete: {len(md)} samples")
         else:
-            print(f"⚠ PTB-XL directory not found: {ptbxl_dir}")
+            print(f"! PTB-XL directory not found: {ptbxl_dir}")
 
     # SaMi-Trop (handles both "samitrop" and "sami_trop")
     if "samitrop" in datasets_to_process:
@@ -420,7 +450,7 @@ def main():
             samitrop_dir = official / "sami_trop"  # Try alternate name
         
         if samitrop_dir.exists():
-            print("\n📊 Processing SaMi-Trop...")
+            print("\n Processing SaMi-Trop...")
             md = process_samitrop(
                 samitrop_dir,
                 out_2d / "samitrop",
@@ -431,9 +461,9 @@ def main():
             )
             pd.DataFrame(md).to_csv(meta_dir / "samitrop_metadata.csv", index=False)
             datasets_processed.append("samitrop")
-            print(f"✓ SaMi-Trop complete: {len(md)} samples")
+            print(f"OK SaMi-Trop complete: {len(md)} samples")
         else:
-            print(f"⚠ SaMi-Trop directory not found. Tried:")
+            print(f"! SaMi-Trop directory not found. Tried:")
             print(f"  - {official / 'samitrop'}")
             print(f"  - {official / 'sami_trop'}")
 
@@ -441,7 +471,7 @@ def main():
     if "code15" in datasets_to_process:
         code15_dir = official / "code15"
         if code15_dir.exists():
-            print("\n📊 Processing CODE-15...")
+            print("\n Processing CODE-15...")
             md = process_code15(
                 code15_dir,
                 out_2d / "code15",
@@ -452,9 +482,9 @@ def main():
             )
             pd.DataFrame(md).to_csv(meta_dir / "code15_metadata.csv", index=False)
             datasets_processed.append("code15")
-            print(f"✓ CODE-15 complete: {len(md)} samples")
+            print(f"OK CODE-15 complete: {len(md)} samples")
         else:
-            print(f"⚠ CODE-15 directory not found: {code15_dir}")
+            print(f"! CODE-15 directory not found: {code15_dir}")
 
     # Merge metadata
     print("\n" + "="*70)
@@ -462,7 +492,7 @@ def main():
     print("="*70)
     
     if args.skip_merge:
-        print("⚠ Skipping merge (--skip_merge flag)")
+        print("! Skipping merge (--skip_merge flag)")
         all_df = pd.DataFrame()
         for ds in datasets_processed:
             csv_path = meta_dir / f"{ds}_metadata.csv"
@@ -474,7 +504,7 @@ def main():
     
     if len(all_df) > 0:
         all_df.to_csv(meta_dir / "all_data.csv", index=False)
-        print(f"\n✓ Saved combined: all_data.csv ({len(all_df)} samples)")
+        print(f"\nOK Saved combined: all_data.csv ({len(all_df)} samples)")
 
     print("\n" + "="*70)
     print(" PREPROCESSING COMPLETE")
@@ -489,7 +519,7 @@ def main():
             print("\nSex distribution (1=male, 0=female, NaN=missing):")
             print(all_df["sex"].value_counts(dropna=False).to_string())
     
-    print("\n📁 Output locations:")
+    print("\n Output locations:")
     print(f"  2D images: {out_2d}")
     print(f"  1D signals: {out_1d}")
     print(f"  Metadata: {meta_dir}")

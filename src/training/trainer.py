@@ -70,6 +70,16 @@ from tqdm import tqdm
 import numpy as np
 from pathlib import Path
 from typing import Dict, Optional
+import pandas as pd
+
+import json
+
+try:
+    from torch.utils.tensorboard import SummaryWriter as _SummaryWriter
+    _TB_AVAILABLE = True
+except ImportError:
+    _TB_AVAILABLE = False
+    _SummaryWriter = None
 
 from .losses import CombinedLoss
 from .metrics import compute_metrics
@@ -118,12 +128,32 @@ class ChagasTrainer:
         warmup_iters: int = 200,
         # Phase-specific gradient accumulation (FIX #B)
         phase1_grad_accum: int = 4,
-        phase2_grad_accum: int = 2,   # v11: scaled for eff.batch=32 with batch_size=16
+        phase2_grad_accum: int = 2,
         # Legacy: single accum for both phases (overrides if provided explicitly)
         grad_accum_steps: Optional[int] = None,
         # Val subset (FIX #A)
         val_subset_size: Optional[int] = 3000,
-        val_n_permutations: int = 1000,   # FIX #C: fast mid-training metric
+        val_n_permutations: int = 1000,
+        # TensorBoard writer (optional)
+        tb_writer=None,
+        # Steps per epoch (for TensorBoard x-axis in epoch units)
+        steps_per_epoch: Optional[int] = None,
+        # Epoch-based Phase 2 with early stopping
+        max_phase2_epochs: int = 0,
+        early_stopping_patience: int = 10,
+        early_stopping_min_delta: float = 1e-4,
+        # Loss hyperparameters (sweep-friendly)
+        pos_weight: float = 10.0,
+        gamma_neg: float = 2.0,
+        alignment_weight: float = 0.5,
+        # Threshold strategy: 'youden' | 'min_precision' | 'min_recall'
+        threshold_strategy: str = 'youden',
+        threshold_kwargs: dict = None,
+        # Named strategy parameters (Dewmika format)
+        rec_min_recall: float = 0.99,
+        recp_min_precision: float = 0.30,
+        # Per-epoch results CSV (written after each Phase 2 epoch)
+        epoch_csv_path: Optional[str] = None,
     ):
         self.model = model.to(device)
         self.train_loader = train_loader
@@ -155,7 +185,26 @@ class ChagasTrainer:
         self.use_amp = use_amp
         self.scaler = GradScaler('cuda') if use_amp else None
 
-        self.criterion = CombinedLoss()
+        self.criterion = CombinedLoss(
+            pos_weight=pos_weight,
+            gamma_neg=gamma_neg,
+            alignment_weight=alignment_weight,
+        )
+        self.threshold_strategy  = threshold_strategy
+        self.threshold_kwargs    = threshold_kwargs or {}
+        self.rec_min_recall      = rec_min_recall
+        self.recp_min_precision  = recp_min_precision
+        self.epoch_csv_path      = Path(epoch_csv_path) if epoch_csv_path else None
+
+        self.tb_writer = tb_writer
+        self.steps_per_epoch = steps_per_epoch
+        self._global_step = 0   # monotonic across phases, used for TB x-axis
+
+        self.max_phase2_epochs       = max_phase2_epochs
+        self.early_stopping_patience = early_stopping_patience
+        self.early_stopping_min_delta = early_stopping_min_delta
+        self.current_epoch = 0   # epoch counter for epoch-based Phase 2
+        self.no_improve = 0      # early stopping patience counter
 
         self.best_val_score = 0.0
         self.current_phase = 1
@@ -163,7 +212,12 @@ class ChagasTrainer:
         self.skipped_batches = 0
         self.history = {
             'train_loss': [], 'val_loss': [],
-            'val_auroc': [], 'val_tpr_5pct': [],
+            'val_auroc': [], 'val_auprc': [], 'val_tpr_5pct': [],
+            'val_precision': [], 'val_recall': [], 'val_f1': [], 'val_accuracy': [],
+            'val_threshold': [],         # strategy threshold
+            'val_threshold_youden': [],  # Youden reference (always computed)
+            'val_t05_precision': [], 'val_t05_recall': [],
+            'val_t05_f1': [], 'val_t05_accuracy': [],  # T=0.5 reference
             'grad_norm': [],
         }
 
@@ -187,12 +241,19 @@ class ChagasTrainer:
         """
         dataset = self.val_loader.dataset
 
-        # Collect all labels from the val dataset
-        if hasattr(dataset, 'df'):
-            # Our ChagasDataset stores a DataFrame with label_hard column
+        # Collect all labels — handle plain dataset or torch.utils.data.Subset
+        from torch.utils.data import Subset as _Subset
+        if isinstance(dataset, _Subset):
+            base = dataset.dataset
+            indices = dataset.indices
+            if hasattr(base, 'df'):
+                labels = base.df.iloc[indices]['label_hard'].values.astype(int)
+            else:
+                print("  Building val subset: scanning labels (one-time)...")
+                labels = np.array([int(base[i]['hard_label'].item()) for i in indices])
+        elif hasattr(dataset, 'df'):
             labels = dataset.df['label_hard'].values.astype(int)
         else:
-            # Fallback: iterate (slow but only done once)
             print("  Building val subset: scanning labels (one-time, ~30s)...")
             labels = []
             for i in range(len(dataset)):
@@ -233,6 +294,40 @@ class ChagasTrainer:
 
         print(f"   Val subset: {n_pos} positives + {n_neg} negatives "
               f"= {n_pos+n_neg} samples (stratified, guaranteed both classes)")
+
+    # ── Val best metrics JSON ─────────────────────────────────────────
+
+    def _save_val_best_metrics(self, metrics: dict) -> None:
+        """Save val metrics for the current best checkpoint to val_best_metrics.json."""
+        if self.epoch_csv_path is None:
+            return
+        best = {
+            'best_epoch':     self.current_epoch,
+            'best_iteration': self.current_iteration,
+            'best_val_auprc': metrics.get('auprc', 0.0),
+            'val_auroc':      metrics.get('auroc', 0.0),
+            'val_auprc':      metrics.get('auprc', 0.0),
+            'val_tpr5':       metrics.get('tpr_5pct', 0.0),
+        }
+        for s in ('rec', 'recp', 'f1', 't05'):
+            for k in ('thr', 'tp', 'fp', 'tn', 'fn', 'acc', 'prec', 'rec', 'spec', 'npv', 'f1', 'f2'):
+                default = 0 if k in ('tp', 'fp', 'tn', 'fn') else 0.0
+                best[f'val_{s}_{k}'] = metrics.get(f'{s}_{k}', default)
+        out_path = Path(self.epoch_csv_path).parent / 'val_best_metrics.json'
+        with open(out_path, 'w') as fh:
+            json.dump(best, fh, indent=2)
+
+    # ── TensorBoard helpers ───────────────────────────────────────────
+
+    def _epoch(self) -> float:
+        """Global step expressed as a fractional epoch (for TB x-axis)."""
+        if self.steps_per_epoch and self.steps_per_epoch > 0:
+            return self._global_step / self.steps_per_epoch
+        return float(self._global_step)
+
+    def _tb_log(self, tag: str, value: float) -> None:
+        if self.tb_writer is not None and not math.isnan(value):
+            self.tb_writer.add_scalar(tag, value, global_step=int(self._global_step))
 
     # ── Freeze / Unfreeze ─────────────────────────────────────────────
 
@@ -329,6 +424,7 @@ class ChagasTrainer:
                     if scheduler: scheduler.step()
                 self.history['grad_norm'].append(float(gn))
 
+        self._global_step += 1
         return (loss * grad_accum).item(), train_iter
 
     # ── Validation ────────────────────────────────────────────────────
@@ -366,15 +462,13 @@ class ChagasTrainer:
         avg_loss = total_loss / max(1, batch_idx + 1)
         return avg_loss, np.concatenate(all_probs), np.concatenate(all_labels)
 
-    def validate(self, fast: bool = False) -> tuple:
+    def validate(self, fast: bool = False, n_permutations: int = None) -> tuple:
         """
         Validate on the validation set.
 
-        fast=True: Uses pre-computed STRATIFIED subset (FIX #A) + 1000 perms (FIX #C).
-                   No "only one class" fallback needed — subset always has both classes.
-                   Time: ~30-60s on RTX 3050.
-        fast=False: Uses full val set + 10000 perms (official, end-of-phase only).
-                    Time: ~5-8 min.
+        fast=True:  pre-computed STRATIFIED subset + self.val_n_permutations perms.
+        fast=False: full val set + 10000 perms (or n_permutations if provided).
+        n_permutations: override permutation count regardless of fast flag.
 
         Returns (avg_loss, metrics_dict).
         """
@@ -383,28 +477,48 @@ class ChagasTrainer:
         if fast and self._val_subset_loader is not None:
             # Use pre-computed stratified subset (GUARANTEED to have both classes)
             n_total = len(self._val_subset_indices)
-            n_pos = int(sum(1 for i in self._val_subset_indices
-                            if self.val_loader.dataset.df['label_hard'].iloc[i] == 1)
-                        if hasattr(self.val_loader.dataset, 'df') else 0)
+            from torch.utils.data import Subset as _Subset
+            _ds = self.val_loader.dataset
+            if isinstance(_ds, _Subset):
+                _base_df = _ds.dataset.df if hasattr(_ds.dataset, 'df') else None
+                n_pos = int(sum(1 for i in self._val_subset_indices
+                                if _base_df is not None and _base_df.iloc[_ds.indices[i]]['label_hard'] == 1))
+            elif hasattr(_ds, 'df'):
+                n_pos = int(sum(1 for i in self._val_subset_indices
+                                if _ds.df['label_hard'].iloc[i] == 1))
+            else:
+                n_pos = 0
             desc = f"Val subset ({n_total} samples, stratified)"
             avg_loss, all_probs, all_labels = self._run_val_loop(
                 self._val_subset_loader,
                 max_batches=len(self._val_subset_loader),
                 desc=desc,
             )
-            # FIX #C: Use fewer permutations for fast mid-training checks
-            metrics = compute_metrics(all_labels, all_probs,
-                                      num_permutations=self.val_n_permutations)
+            perms = n_permutations if n_permutations is not None else self.val_n_permutations
+            metrics = compute_metrics(
+                all_labels, all_probs,
+                num_permutations=perms,
+                threshold_strategy=self.threshold_strategy,
+                threshold_kwargs=self.threshold_kwargs,
+                rec_min_recall=self.rec_min_recall,
+                recp_min_precision=self.recp_min_precision,
+            )
         else:
-            # Full validation (end of phase)
             desc = f"Val full ({len(self.val_loader)} batches)"
             avg_loss, all_probs, all_labels = self._run_val_loop(
                 self.val_loader,
                 max_batches=len(self.val_loader),
                 desc=desc,
             )
-            # Full permutations for official score
-            metrics = compute_metrics(all_labels, all_probs, num_permutations=10000)
+            perms = n_permutations if n_permutations is not None else 10000
+            metrics = compute_metrics(
+                all_labels, all_probs,
+                num_permutations=perms,
+                threshold_strategy=self.threshold_strategy,
+                threshold_kwargs=self.threshold_kwargs,
+                rec_min_recall=self.rec_min_recall,
+                recp_min_precision=self.recp_min_precision,
+            )
 
         return avg_loss, metrics
 
@@ -416,16 +530,38 @@ class ChagasTrainer:
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'phase': phase, 'iteration': iteration,
+            'global_step': self._global_step,
+            'current_epoch': self.current_epoch,
             'val_score': val_score, 'best_val_score': self.best_val_score,
             'metrics': metrics, 'history': self.history,
             'skipped_batches': self.skipped_batches,
+            'no_improve': getattr(self, 'no_improve', 0),
         }
         if self.scaler:
             state['scaler_state_dict'] = self.scaler.state_dict()
-        torch.save(state, self.checkpoint_dir / f'fold{fold}_latest.pt')
+
+        # Atomic checkpoint save to prevent corruption on interruption
+        import os
+        latest_path = self.checkpoint_dir / f'fold{fold}_latest.pt'
+        tmp_latest_path = self.checkpoint_dir / f'fold{fold}_latest.pt.tmp'
+        try:
+            torch.save(state, tmp_latest_path)
+            if tmp_latest_path.exists():
+                os.replace(tmp_latest_path, latest_path)
+        except Exception as e:
+            print(f"WARNING: Atomic rename failed for latest checkpoint: {e}. Saving directly.")
+            torch.save(state, latest_path)
+
         if is_best:
-            torch.save(state, self.checkpoint_dir / f'fold{fold}_best.pt')
-            print(f"\n  NEW BEST → TPR@5%={val_score:.4f}")
+            best_path = self.checkpoint_dir / f'fold{fold}_best.pt'
+            tmp_best_path = self.checkpoint_dir / f'fold{fold}_best.pt.tmp'
+            try:
+                torch.save(state, tmp_best_path)
+                if tmp_best_path.exists():
+                    os.replace(tmp_best_path, best_path)
+            except Exception as e:
+                print(f"WARNING: Atomic rename failed for best checkpoint: {e}. Saving directly.")
+                torch.save(state, best_path)
 
     def load_checkpoint(self, path, optimizer=None):
         ckpt = torch.load(path, map_location=self.device, weights_only=False)
@@ -437,11 +573,288 @@ class ChagasTrainer:
         self.best_val_score = ckpt.get('best_val_score', 0.0)
         self.history = ckpt.get('history', self.history)
         self.skipped_batches = ckpt.get('skipped_batches', 0)
+        self._global_step  = ckpt.get('global_step', self.current_iteration)
+        self.current_epoch = ckpt.get('current_epoch', 0)
+        self.no_improve = ckpt.get('no_improve', 0)
         if self.scaler and 'scaler_state_dict' in ckpt:
             self.scaler.load_state_dict(ckpt['scaler_state_dict'])
         print(f" Resumed  Phase={self.current_phase}  Iter={self.current_iteration}"
-              f"  Best={self.best_val_score:.4f}")
+              f"  Best={self.best_val_score:.4f}  no_improve={self.no_improve}")
         return ckpt
+
+    # ── Epoch-based Phase 2 with early stopping ───────────────────────
+
+    def _run_phase2_epoch_based(self, fold, max_epochs, start_epoch,
+                                optimizer, scheduler, grad_accum) -> Dict:
+        """
+        Epoch-based Phase 2 training with early stopping.
+
+        Iterates over complete epochs (full DataLoader pass). Validates after
+        every epoch. Stops when val TPR@5% does not improve by more than
+        early_stopping_min_delta for early_stopping_patience consecutive epochs.
+
+        Returns metrics dict from the last completed epoch.
+        """
+        # Pre-load completed epoch rows so the CSV is never overwritten on resume.
+        # Only keep rows for epochs <= start_epoch (already validated and saved).
+        epoch_rows: list = []
+        if start_epoch > 0 and self.epoch_csv_path:
+            _csv_path = Path(self.epoch_csv_path)
+            if _csv_path.exists():
+                try:
+                    _existing = pd.read_csv(_csv_path)
+                    _existing = _existing[_existing['epoch'] <= start_epoch]
+                    epoch_rows = _existing.to_dict('records')
+                    print(f"  Loaded {len(epoch_rows)} completed epoch row(s) from CSV "
+                          f"(epochs 1–{start_epoch})")
+                except Exception as _e:
+                    print(f"  WARNING: could not read existing epoch CSV ({_e}); starting fresh.")
+                    epoch_rows = []
+
+        # Restore no_improve from checkpoint, fallback or sync with CSV
+        no_improve = getattr(self, 'no_improve', 0)
+        if epoch_rows:
+            csv_no_improve = int(epoch_rows[-1].get('no_improve', 0))
+            if csv_no_improve != no_improve:
+                print(f"  Note: checkpoint no_improve ({no_improve}) differed from CSV ({csv_no_improve}). Using CSV value {csv_no_improve}.")
+                no_improve = csv_no_improve
+        self.no_improve = no_improve
+
+        metrics     = {}
+
+        for epoch_idx in range(start_epoch, max_epochs):
+            epoch_num = epoch_idx + 1
+            self.current_epoch = epoch_num
+            self.model.train()
+
+            running_loss = []
+            accum_step   = 0
+
+            pbar = tqdm(
+                self.train_loader,
+                desc=f'P2 Epoch {epoch_num}/{max_epochs}',
+                dynamic_ncols=True,
+            )
+
+            for batch in pbar:
+                images  = batch['image'].to(self.device, non_blocking=True)
+                signals = batch['signal'].to(self.device, non_blocking=True)
+                ages    = batch['age'].to(self.device, non_blocking=True)
+                sexes   = batch['sex'].to(self.device, non_blocking=True)
+                labels  = batch['label'].to(self.device, non_blocking=True)
+
+                is_last = (accum_step + 1) % grad_accum == 0
+
+                with autocast('cuda', enabled=self.use_amp):
+                    outputs = self.model(images, signals, ages, sexes)
+                    losses  = self.criterion(
+                        outputs['logits'].squeeze(-1), labels,
+                        outputs['aligned_2d_features'], outputs['fm_features'],
+                    )
+                    loss = losses['total_loss'] / grad_accum
+
+                if not torch.isfinite(loss):
+                    self.skipped_batches += 1
+                    optimizer.zero_grad()
+                    self._global_step += 1
+                    accum_step = (accum_step + 1) % grad_accum
+                    continue
+
+                if self.use_amp:
+                    self.scaler.scale(loss).backward()
+                    if is_last:
+                        self.scaler.unscale_(optimizer)
+                        gn = torch.nn.utils.clip_grad_norm_(
+                            self.model.parameters(), self.max_grad_norm)
+                        self.scaler.step(optimizer)
+                        self.scaler.update()
+                        optimizer.zero_grad()
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", UserWarning)
+                            if scheduler: scheduler.step()
+                        self.history['grad_norm'].append(float(gn))
+                else:
+                    loss.backward()
+                    if is_last:
+                        gn = torch.nn.utils.clip_grad_norm_(
+                            self.model.parameters(), self.max_grad_norm)
+                        optimizer.step()
+                        optimizer.zero_grad()
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", UserWarning)
+                            if scheduler: scheduler.step()
+                        self.history['grad_norm'].append(float(gn))
+
+                self._global_step += 1
+                accum_step = (accum_step + 1) % grad_accum
+
+                step_loss = (loss * grad_accum).item()
+                if not math.isnan(step_loss):
+                    running_loss.append(step_loss)
+                    if len(running_loss) > 50:
+                        running_loss.pop(0)
+
+                smooth = np.mean(running_loss) if running_loss else float('nan')
+                self.history['train_loss'].append(smooth)
+
+                if self._global_step % 50 == 0 and not math.isnan(smooth):
+                    self._tb_log('Loss/train', smooth)
+                    try:
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            lr_val = scheduler.get_last_lr()[0]
+                        self._tb_log('Training/LearningRate', lr_val)
+                    except Exception:
+                        pass
+                    if self.history['grad_norm']:
+                        self._tb_log('Training/GradNorm', self.history['grad_norm'][-1])
+
+                # ── Mid-epoch checkpoint every val_every_n_iters steps ──────────
+                # Saves epoch_num - 1 (last COMPLETED epoch) so that resuming
+                # restarts the current in-progress epoch from step 0 rather
+                # than skipping it entirely and jumping to epoch_num + 1.
+                if self._global_step % self.val_every_n_iters == 0:
+                    _saved_cur_epoch = self.current_epoch
+                    self.current_epoch = epoch_num - 1  # last fully completed epoch
+                    self.no_improve = no_improve
+                    self.save_checkpoint(
+                        fold, 2, epoch_num - 1,
+                        self.best_val_score,
+                        metrics,
+                        optimizer,
+                        is_best=False,
+                    )
+                    self.current_epoch = _saved_cur_epoch
+
+                pbar.set_postfix(
+                    loss=f'{smooth:.4f}',
+                    skips=self.skipped_batches,
+                    patience=f'{no_improve}/{self.early_stopping_patience}',
+                )
+
+            pbar.close()
+
+            # End-of-epoch: full validation with 1000 perms (fast enough per epoch)
+            print(f'\n  Epoch {epoch_num}/{max_epochs} — validating ...')
+            val_loss, metrics = self.validate(fast=False, n_permutations=1000)
+            val_score = metrics.get('tpr_5pct', 0.0)
+
+            self.history['val_tpr_5pct'].append(val_score)
+            self.history['val_auroc'].append(metrics.get('auroc', 0.0))
+            self.history['val_auprc'].append(metrics.get('auprc', 0.0))
+            self.history['val_loss'].append(val_loss)
+            self.history['val_precision'].append(metrics.get('precision', 0.0))
+            self.history['val_recall'].append(metrics.get('recall', 0.0))
+            self.history['val_f1'].append(metrics.get('f1', 0.0))
+            self.history['val_accuracy'].append(metrics.get('accuracy', 0.0))
+            self.history['val_threshold'].append(metrics.get('threshold', float('nan')))
+            self.history['val_threshold_youden'].append(metrics.get('threshold_youden', float('nan')))
+            self.history['val_t05_precision'].append(metrics.get('precision_t05', 0.0))
+            self.history['val_t05_recall'].append(metrics.get('recall_t05', 0.0))
+            self.history['val_t05_f1'].append(metrics.get('f1_t05', 0.0))
+            self.history['val_t05_accuracy'].append(metrics.get('accuracy_t05', 0.0))
+
+            self._tb_log('Loss/val',                   val_loss)
+            self._tb_log('Metrics/ChallengeScore',     val_score)
+            self._tb_log('Metrics/AUROC',              metrics.get('auroc', 0.0))
+            self._tb_log('Metrics/AUPRC',              metrics.get('auprc', 0.0))
+            self._tb_log('Metrics/Precision',          metrics.get('precision', 0.0))
+            self._tb_log('Metrics/Recall',             metrics.get('recall', 0.0))
+            self._tb_log('Metrics/F1',                 metrics.get('f1', 0.0))
+            self._tb_log('Metrics/Accuracy',           metrics.get('accuracy', 0.0))
+            self._tb_log('Metrics/Threshold_Strategy', metrics.get('threshold', float('nan')))
+            self._tb_log('Metrics/Threshold_Youden',   metrics.get('threshold_youden', float('nan')))
+            self._tb_log('Metrics/Recall_Youden',      metrics.get('recall_youden', 0.0))
+            self._tb_log('Metrics/Precision_Youden',   metrics.get('precision_youden', 0.0))
+            self._tb_log('Metrics/Recall_T05',         metrics.get('recall_t05', 0.0))
+            self._tb_log('Metrics/F1_T05',             metrics.get('f1_t05', 0.0))
+
+            method = "OFFICIAL" if metrics.get('using_official') else "APPROX"
+            _thr_y = metrics.get('threshold_youden', float('nan'))
+            print(
+                f'  Epoch {epoch_num}:  TPR@5%={val_score:.4f}  '
+                f'AUROC={metrics.get("auroc",0):.4f}  AUPRC={metrics.get("auprc",0):.4f}  '
+                f'F1={metrics.get("f1",0):.4f}  Recall={metrics.get("recall",0):.4f}  '
+                f'Thr={metrics.get("threshold", float("nan")):.3f}  '
+                f'Thr(Youden)={_thr_y:.3f}  [{method}, 1000p]'
+            )
+
+            # Best checkpoint on AUROC — standard medical AI metric, threshold-free,
+            # not PhysioNet-specific. TPR@5% and AUPRC tracked alongside.
+            auroc_score = metrics.get('auroc', 0.0)
+            is_best = auroc_score > self.best_val_score + self.early_stopping_min_delta
+            if is_best:
+                self.best_val_score = auroc_score
+                no_improve = 0
+                self._save_val_best_metrics(metrics)
+                print(f'  NEW BEST: AUROC={auroc_score:.4f}  TPR@5%={val_score:.4f}  '
+                      f'F1={metrics.get("f1",0):.4f}  Recall={metrics.get("recall",0):.4f}  '
+                      f'Precision={metrics.get("precision",0):.4f}')
+            else:
+                no_improve += 1
+                print(f'  No improvement  ({no_improve}/{self.early_stopping_patience})')
+
+            # Per-epoch CSV — written after every epoch so progress is always readable
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    _lr = scheduler.get_last_lr()[0]
+            except Exception:
+                _lr = float('nan')
+            _train_loss = float(np.mean(running_loss)) if running_loss else float('nan')
+            _row = {
+                'epoch':      epoch_num,
+                'lr':         _lr,
+                'train_loss': _train_loss,
+                'val_loss':   val_loss,
+                'val_auroc':  metrics.get('auroc', float('nan')),
+                'val_auprc':  metrics.get('auprc', float('nan')),
+                'val_tpr5':   val_score,
+            }
+            for s in ('rec', 'recp', 'f1', 't05'):
+                for k in ('thr', 'tp', 'fp', 'tn', 'fn', 'acc', 'prec', 'rec', 'spec', 'npv', 'f1', 'f2'):
+                    default = 0 if k in ('tp', 'fp', 'tn', 'fn') else float('nan')
+                    _row[f'val_{s}_{k}'] = metrics.get(f'{s}_{k}', default)
+            _row['is_best']    = int(is_best)
+            _row['no_improve'] = no_improve
+            epoch_rows.append(_row)
+            if self.epoch_csv_path:
+                pd.DataFrame(epoch_rows).to_csv(self.epoch_csv_path, index=False)
+
+            self.current_phase     = 2
+            self.current_iteration = epoch_num
+            self.no_improve        = no_improve
+            self.save_checkpoint(fold, 2, epoch_num, auroc_score, metrics, optimizer, is_best)
+
+            if no_improve >= self.early_stopping_patience:
+                print(f'\n  Early stopping at epoch {epoch_num} '
+                      f'(patience={self.early_stopping_patience} exhausted)')
+                print(f'  Best TPR@5%: {self.best_val_score:.4f}')
+                break
+
+        # Final full-accuracy validation (10000 perms) at the end
+        print(f'\n  Running final FULL validation (10000 perms)...')
+        val_loss_final, metrics_final = self.validate(fast=False, n_permutations=10000)
+        val_score_final = metrics_final.get('tpr_5pct', 0.0)
+        print(f'  FINAL: TPR@5%={val_score_final:.4f}  AUROC={metrics_final.get("auroc",0):.4f}  '
+              f'F1={metrics_final.get("f1",0):.4f}  Threshold={metrics_final.get("threshold", float("nan")):.4f}  '
+              f'Precision={metrics_final.get("precision",0):.4f}  '
+              f'Recall={metrics_final.get("recall",0):.4f}')
+
+        self._tb_log('EndOfPhase/ChallengeScore', val_score_final)
+        self._tb_log('EndOfPhase/AUROC',          metrics_final.get('auroc', 0.0))
+        self._tb_log('EndOfPhase/AUPRC',          metrics_final.get('auprc', 0.0))
+        self._tb_log('EndOfPhase/Threshold',      metrics_final.get('threshold', float('nan')))
+        self._tb_log('EndOfPhase/Precision',      metrics_final.get('precision', 0.0))
+        self._tb_log('EndOfPhase/Recall',         metrics_final.get('recall', 0.0))
+
+        is_best = val_score_final > self.best_val_score + self.early_stopping_min_delta
+        if is_best:
+            self.best_val_score = val_score_final
+            self._save_val_best_metrics(metrics_final)
+        self.save_checkpoint(fold, 2, self.current_epoch,
+                             val_score_final, metrics_final, optimizer, is_best)
+        return metrics_final
 
     # ── Shared phase training loop ────────────────────────────────────
 
@@ -479,6 +892,19 @@ class ChagasTrainer:
             self.current_iteration = iteration + 1
             self.history['train_loss'].append(smooth)
 
+            # TensorBoard: train scalars every 50 steps
+            if self._global_step % 50 == 0 and not math.isnan(smooth):
+                self._tb_log('Loss/train', smooth)
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        lr_val = scheduler.get_last_lr()[0]
+                    self._tb_log('Training/LearningRate', lr_val)
+                except Exception:
+                    pass
+                if self.history['grad_norm']:
+                    self._tb_log('Training/GradNorm', self.history['grad_norm'][-1])
+
             # Mid-training validation (fast stratified subset)
             if (iteration + 1) % self.val_every_n_iters == 0:
                 progress.set_description(f"{label} | Validating...")
@@ -487,11 +913,39 @@ class ChagasTrainer:
 
                 self.history['val_tpr_5pct'].append(val_score)
                 self.history['val_auroc'].append(metrics.get('auroc', 0.0))
+                self.history['val_auprc'].append(metrics.get('auprc', 0.0))
                 self.history['val_loss'].append(val_loss)
+                self.history['val_precision'].append(metrics.get('precision', 0.0))
+                self.history['val_recall'].append(metrics.get('recall', 0.0))
+                self.history['val_f1'].append(metrics.get('f1', 0.0))
+                self.history['val_accuracy'].append(metrics.get('accuracy', 0.0))
+                self.history['val_threshold'].append(metrics.get('threshold', float('nan')))
+                self.history['val_threshold_youden'].append(metrics.get('threshold_youden', float('nan')))
+                self.history['val_t05_precision'].append(metrics.get('precision_t05', 0.0))
+                self.history['val_t05_recall'].append(metrics.get('recall_t05', 0.0))
+                self.history['val_t05_f1'].append(metrics.get('f1_t05', 0.0))
+                self.history['val_t05_accuracy'].append(metrics.get('accuracy_t05', 0.0))
+
+                # TensorBoard: val metrics
+                self._tb_log('Loss/val',                    val_loss)
+                self._tb_log('Metrics/ChallengeScore',      val_score)
+                self._tb_log('Metrics/AUROC',               metrics.get('auroc', 0.0))
+                self._tb_log('Metrics/AUPRC',               metrics.get('auprc', 0.0))
+                self._tb_log('Metrics/Precision',           metrics.get('precision', 0.0))
+                self._tb_log('Metrics/Recall',              metrics.get('recall', 0.0))
+                self._tb_log('Metrics/F1',                  metrics.get('f1', 0.0))
+                self._tb_log('Metrics/Accuracy',            metrics.get('accuracy', 0.0))
+                self._tb_log('Metrics/Threshold_Strategy',  metrics.get('threshold', float('nan')))
+                self._tb_log('Metrics/Threshold_Youden',    metrics.get('threshold_youden', float('nan')))
+                self._tb_log('Metrics/Recall_Youden',       metrics.get('recall_youden', 0.0))
+                self._tb_log('Metrics/Precision_Youden',    metrics.get('precision_youden', 0.0))
+                self._tb_log('Metrics/Recall_T05',          metrics.get('recall_t05', 0.0))
+                self._tb_log('Metrics/F1_T05',              metrics.get('f1_t05', 0.0))
 
                 is_best = val_score > self.best_val_score
                 if is_best:
                     self.best_val_score = val_score
+                    self._save_val_best_metrics(metrics)
                 self.save_checkpoint(fold, phase, iteration + 1,
                                      val_score, metrics, optimizer, is_best)
 
@@ -510,14 +964,28 @@ class ChagasTrainer:
         val_score = metrics.get('tpr_5pct', 0.0)
         method = "OFFICIAL" if metrics.get('using_official') else "APPROX"
         print(f"   Phase {phase} complete:")
-        print(f"    TPR@5%:  {val_score:.4f}  [{method}]")
-        print(f"    AUROC:   {metrics.get('auroc',0):.4f}")
-        print(f"    AUPRC:   {metrics.get('auprc',0):.4f}")
-        print(f"    Samples: {metrics.get('n_total',0)} total, {metrics.get('n_pos',0)} positive")
+        print(f"    TPR@5%:    {val_score:.4f}  [{method}]")
+        print(f"    AUROC:     {metrics.get('auroc',0):.4f}")
+        print(f"    AUPRC:     {metrics.get('auprc',0):.4f}")
+        _thr = metrics.get('threshold', float('nan'))
+        _thr_str = f"{_thr:.4f}" if not math.isnan(_thr) else "nan"
+        print(f"    Threshold: {_thr_str} (Youden-optimal)")
+        print(f"    Precision: {metrics.get('precision',0):.4f}  Recall: {metrics.get('recall',0):.4f}  F1: {metrics.get('f1',0):.4f}")
+        print(f"    Accuracy:  {metrics.get('accuracy',0):.4f}")
+        print(f"    Samples:   {metrics.get('n_total',0)} total, {metrics.get('n_pos',0)} positive")
+
+        # TensorBoard: end-of-phase full metrics (tagged separately for clarity)
+        self._tb_log('EndOfPhase/ChallengeScore', val_score)
+        self._tb_log('EndOfPhase/AUROC',          metrics.get('auroc', 0.0))
+        self._tb_log('EndOfPhase/AUPRC',          metrics.get('auprc', 0.0))
+        self._tb_log('EndOfPhase/Threshold',      metrics.get('threshold', float('nan')))
+        self._tb_log('EndOfPhase/Precision',      metrics.get('precision', 0.0))
+        self._tb_log('EndOfPhase/Recall',         metrics.get('recall', 0.0))
 
         is_best = val_score > self.best_val_score
         if is_best:
             self.best_val_score = val_score
+            self._save_val_best_metrics(metrics)
         self.save_checkpoint(fold, phase, total_iters, val_score, metrics, optimizer, is_best)
         return metrics
 
@@ -542,11 +1010,37 @@ class ChagasTrainer:
         print(f"{'='*68}")
 
         if resume_from and Path(resume_from).exists():
-            self.load_checkpoint(resume_from)
-            start_phase = self.current_phase
-            start_iter = self.current_iteration
-            if start_phase == 2:
-                self.unfreeze_fm()
+            try:
+                self.load_checkpoint(resume_from)
+                start_phase = self.current_phase
+                start_iter = self.current_iteration
+                if start_phase == 2:
+                    self.unfreeze_fm()
+            except Exception as e:
+                print(f"\n[WARNING] Failed to load latest checkpoint '{resume_from}': {e}")
+                print("The checkpoint file might be corrupted (e.g., training was interrupted during write).")
+                # Try fallback to best checkpoint
+                best_name = Path(resume_from).name.replace('_latest.pt', '_best.pt')
+                best_path = Path(resume_from).parent / best_name
+                if best_path.exists() and best_path != Path(resume_from):
+                    try:
+                        print(f"Attempting fallback: loading best checkpoint '{best_path}' instead...")
+                        self.load_checkpoint(str(best_path))
+                        start_phase = self.current_phase
+                        start_iter = self.current_iteration
+                        if start_phase == 2:
+                            self.unfreeze_fm()
+                    except Exception as e_best:
+                        print(f"[WARNING] Best checkpoint also failed to load: {e_best}")
+                        print("Fallback failed. Starting training from scratch (Phase 1).")
+                        start_phase = 1
+                        start_iter = 0
+                        self.current_phase = self.current_iteration = 0
+                else:
+                    print("No best checkpoint found for fallback. Starting training from scratch (Phase 1).")
+                    start_phase = 1
+                    start_iter = 0
+                    self.current_phase = self.current_iteration = 0
         else:
             start_phase = 1
             start_iter = 0
@@ -566,7 +1060,13 @@ class ChagasTrainer:
 
             if resume_from and start_iter > 0:
                 ckpt = torch.load(resume_from, map_location=self.device, weights_only=False)
-                optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+                try:
+                    optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+                    print("  Phase 1 optimizer state restored from checkpoint.")
+                except (ValueError, RuntimeError) as _e:
+                    print(f"  WARNING: Could not restore Phase 1 optimizer state ({_e}).")
+                    print("  Model weights are restored; optimizer starts fresh.")
+                del ckpt
 
             self._run_phase(fold, 1, self.phase1_iterations, start_iter,
                             optimizer, scheduler, self.phase1_grad_accum)
@@ -578,10 +1078,9 @@ class ChagasTrainer:
 
         # ── Phase 2 ─────────────────────────────────────────────────
         if start_phase == 2:
-            # ETA: ~2.5s/iter at accum=1; scale inversely with accum (fewer forward passes/step)
-            eta_h = self.phase2_iterations * (2.5 / self.phase2_grad_accum) / 3600
-            print(f"\n PHASE 2: FM Unfrozen — {self.phase2_iterations} iters"
-                  f" | ETA ~{eta_h:.1f}h")
+            # Release any cached-but-unallocated VRAM before building the
+            # Phase 2 optimizer and unfreeze all 173M params.
+            torch.cuda.empty_cache()
             print(f"  LR — FM/2D: {self.phase2_lr_low:.1e}  |  Head: {self.phase2_lr_high:.1e}")
 
             if start_iter == 0:
@@ -592,12 +1091,33 @@ class ChagasTrainer:
 
             if resume_from and start_iter > 0:
                 ckpt = torch.load(resume_from, map_location=self.device, weights_only=False)
-                optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+                try:
+                    optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+                    print("  Phase 2 optimizer state restored from checkpoint.")
+                except (ValueError, RuntimeError) as _e:
+                    print(f"  WARNING: Could not restore Phase 2 optimizer state ({_e}).")
+                    print("  Model weights are restored; optimizer starts fresh.")
+                del ckpt
 
-            final_metrics = self._run_phase(
-                fold, 2, self.phase2_iterations, start_iter,
-                optimizer, scheduler, self.phase2_grad_accum
-            )
+            if self.max_phase2_epochs > 0:
+                # ── Epoch-based Phase 2 with early stopping ──────────
+                start_epoch = self.current_epoch if resume_from else 0
+                print(f"\n PHASE 2 (epoch-based): FM Unfrozen"
+                      f" — max {self.max_phase2_epochs} epochs"
+                      f", patience={self.early_stopping_patience}")
+                final_metrics = self._run_phase2_epoch_based(
+                    fold, self.max_phase2_epochs, start_epoch,
+                    optimizer, scheduler, self.phase2_grad_accum,
+                )
+            else:
+                # ── Iteration-based Phase 2 (legacy) ─────────────────
+                eta_h = self.phase2_iterations * (2.5 / self.phase2_grad_accum) / 3600
+                print(f"\n PHASE 2 (iter-based): FM Unfrozen"
+                      f" — {self.phase2_iterations} iters | ETA ~{eta_h:.1f}h")
+                final_metrics = self._run_phase(
+                    fold, 2, self.phase2_iterations, start_iter,
+                    optimizer, scheduler, self.phase2_grad_accum,
+                )
 
             print(f"\n{'='*68}")
             print(f"  Training complete — Fold {fold}")
@@ -605,7 +1125,7 @@ class ChagasTrainer:
             print(f"  Final AUROC:            {final_metrics.get('auroc',0):.4f}")
             print(f"  Skipped batches (nan):  {self.skipped_batches}")
             if self.skipped_batches > 50:
-                print(" High skip count — check signal normalisation.")
+                print("  High skip count — check signal normalisation.")
             print(f"{'='*68}")
             return final_metrics
 
