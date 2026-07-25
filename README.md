@@ -42,20 +42,42 @@ ChagaSight represents each ECG recording in two complementary forms and fuses th
 | **2D pathway** ([`src/models/vit_2d.py`](src/models/vit_2d.py)) | Vision Transformer over a 3-channel Wilson Central Terminal (WCT) re-referenced ECG image, pretrained with a Masked Autoencoder (MAE). |
 | **Cross-modal alignment** ([`src/models/repa_alignment.py`](src/models/repa_alignment.py)) | REPA projection aligns 2D features into the 1D feature space via a cosine-similarity loss, so the 2D pathway learns representations consistent with the (stronger, pretrained) 1D pathway. |
 | **Fusion** ([`src/models/hybrid_model.py`](src/models/hybrid_model.py)) | Aligned 2D + 1D features are concatenated and passed through an MLP classifier for the final binary prediction. |
+| **Ensemble** | Five models are trained under 5-fold cross-validation (173,570,817 parameters each) and their predicted probabilities averaged at inference time. |
 
 Full methodology — preprocessing, self-supervised pretraining, the two-phase fine-tuning strategy, loss functions, and augmentations — is documented in [`PROJECT_PLAN.md`](PROJECT_PLAN.md).
 
 ## Results
 
-Held-out test set (single fixed train/val/test split, PTB-XL + SaMi-Trop; N=3,198, 246 positive):
+Five-fold cross-validated ensemble, evaluated on pooled held-out predictions across all three datasets (N=386,981; 8,579 positive, 2.22% prevalence). Confidence intervals are bootstrapped over 1,000 resamples.
+
+| Metric | Value | 95% CI |
+|---|---|---|
+| AUROC | 0.871 | 0.867 to 0.875 |
+| AUPRC | 0.259 | 0.249 to 0.269 |
+
+At the Youden's J operating point (τ = 0.706):
 
 | Metric | Value |
 |---|---|
-| AUROC | 0.987 |
-| AUPRC | 0.883 |
-| F1 (max-F1 operating point) | 0.825 |
+| Sensitivity | 0.777 |
+| Specificity | 0.801 |
+| NPV | 0.994 |
+| Precision (PPV) | 0.081 |
+| MCC | 0.208 |
+| Accuracy | 0.801 |
+| Number needed to screen | 4.5 |
 
-The notebook computes several alternative decision thresholds (max recall ≥ 0.99, precision ≥ 0.30, max F1, fixed 0.5) rather than assuming a single operating point — see [`notebooks/11_train_final_split.ipynb`](notebooks/11_train_final_split.ipynb) for the full sensitivity analysis and per-strategy breakdown.
+Precision is low by construction at 2.22% prevalence, and AUPRC should be read against the 0.022 random baseline (0.259 is roughly a 12x lift). The intended role is triage rather than diagnosis: a high NPV of 0.994 rules out the large negative majority, leaving confirmatory serology for the flagged minority.
+
+Per-fold AUROC:
+
+| Fold 0 | Fold 1 | Fold 2 | Fold 3 | Fold 4 | Ensemble |
+|---|---|---|---|---|---|
+| 0.850 | 0.761 | 0.800 | 0.822 | 0.848 | **0.871** |
+
+The ensemble scores above its strongest individual fold, indicating the folds make partly decorrelated errors. Per-dataset ROC is reported for CODE-15% alone (AUROC 0.864, AUPRC 0.215); PTB-XL contributes no positive cases and SaMi-Trop no negative cases within this evaluation, so a per-dataset ROC is undefined for both.
+
+Raw per-record predictions and full breakdowns: [`Checkpoints/ensemble_predictions.csv`](Checkpoints/ensemble_predictions.csv), [`Checkpoints/per_fold_metrics.csv`](Checkpoints/per_fold_metrics.csv), [`Checkpoints/per_dataset_metrics.csv`](Checkpoints/per_dataset_metrics.csv).
 
 ## Tech Stack
 
